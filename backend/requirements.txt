@@ -1,0 +1,12 @@
+alembic==1.17.2
+annotated-types==0.7.0
+Mako==1.3.10
+MarkupSafe==3.0.3
+pydantic==2.12.5
+pydantic-settings==2.12.0
+pydantic_core==2.41.5
+python-dotenv==1.2.1
+SQLAlchemy==2.0.45
+sqlmodel==0.0.31
+typing-inspection==0.4.2
+typing_extensions==4.15.0
