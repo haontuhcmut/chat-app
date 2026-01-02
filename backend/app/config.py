@@ -2,7 +2,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-ENV_PATH = BASE_DIR.parent / ".env"
+ENV_PATH = BASE_DIR.parent.parent / ".env"
+
+print(ENV_PATH)
 
 
 class Settings(BaseSettings):
@@ -10,6 +12,7 @@ class Settings(BaseSettings):
     API_VER: str
 
     DATABASE_URL: str
+    DATABASE_URL_ALEMBIC: str
 
     SECRET_KEY: str
     SALT: str
@@ -24,15 +27,11 @@ class Settings(BaseSettings):
     BROKER_URL: str
     BACKEND_URL: str
 
-    class Config:
-        env_file = ".env"
-
     model_config = SettingsConfigDict(env_file=ENV_PATH, extra="ignore")
 
 
 Config = Settings()
 
-#Celery config
+# Celery config
 broker_url = Config.BROKER_URL
-backend_url = Config.BACKEND_URL
-
+result_backend = Config.BACKEND_URL

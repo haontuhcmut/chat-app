@@ -1,6 +1,6 @@
 import redis.asyncio as aioredis
 
-from backend.app.config import Config
+from ..config import Config
 
 token_blocklist = aioredis.from_url(Config.BACKEND_URL)
 async def add_jti_blocklist(jti: str) -> None:

@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, field_validator, model_validator
+import re
 
 class SignUpModel(BaseModel):
     email: str

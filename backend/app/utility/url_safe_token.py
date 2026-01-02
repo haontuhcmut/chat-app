@@ -1,6 +1,6 @@
 import logging
 from itsdangerous import URLSafeSerializer
-from backend.app.config import Config
+from ..config import Config
 
 #Create url-token-safe
 serialize = URLSafeSerializer(
