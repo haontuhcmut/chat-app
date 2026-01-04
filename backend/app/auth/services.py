@@ -47,7 +47,7 @@ class AuthServices:
 
             # Verify account
             token = encode_url_safe_token(dict(email=user_data.email))
-            link = f"{Config.DOMAIN}/{Config.API_VER}/oauth/verify/{token}"
+            link = f"{Config.DOMAIN}/verify?token={token}"
             html_content = templates.get_template("verify_email.html").render(
                 {"action_url": link, "first_name": user_data.first_name}
             )

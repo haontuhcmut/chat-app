@@ -1,43 +1,66 @@
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Label } from "../ui/label"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Label } from "../ui/label";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useNavigate } from "react-router";
 
-const signUpSchema = z.object({
-  firstname: z.string().min(1, "What's your name?"),
-  lastname: z.string().min(1, "What's your name?"),
-  username: z.string().min(1, "Username is required"),
-  email: z.email("Email is required"),
-  password: z.string().min(8, "Password must be at least 8 characters")
-    .regex(/[a-z]/, "Must contain a lowercase letter")
-    .regex(/[A-Z]/, "Must contain an uppercase letter")
-    .regex(/[0-9]/, "Must contain a number")
-    .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
-  confirmPassword: z.string(),
-}).refine(
-  (data) => data.password === data.confirmPassword,
-  {
+const signUpSchema = z
+  .object({
+    firstname: z.string().min(1, "What's your name?"),
+    lastname: z.string().min(1, "What's your name?"),
+    username: z.string().min(1, "Username is required"),
+    email: z.email("Email is required"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[a-z]/, "Must contain a lowercase letter")
+      .regex(/[A-Z]/, "Must contain an uppercase letter")
+      .regex(/[0-9]/, "Must contain a number")
+      .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"], // error shows here
-  }
-)
+  });
 
-type SignUpFormValues = z.infer<typeof signUpSchema>
+type SignUpFormValues = z.infer<typeof signUpSchema>;
 
-export function SignupForm({ className, ...props }: React.ComponentProps<"div">) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SignUpFormValues>({
-    resolver: zodResolver(signUpSchema)
-  })
-
+export function SignupForm({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  const { signUp } = useAuthStore();
+  const navigate = useNavigate();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<SignUpFormValues>({
+    resolver: zodResolver(signUpSchema),
+  });
 
   const onSubmit = async (data: SignUpFormValues) => {
-    // calling api from backend to signup
-  }
+    const { firstname, lastname, username, email, password, confirmPassword } =
+      data;
 
+    // calling api from backend to signup
+    await signUp(
+      username,
+      password,
+      email,
+      firstname,
+      lastname,
+      confirmPassword
+    );
+
+    navigate("/signin");
+  };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -45,7 +68,6 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
         <CardContent className="grid p-0 md:grid-cols-2">
           <form className="p-6 md:p-8" onSubmit={handleSubmit(onSubmit)}>
             <div className="flex flex-col gap-6">
-
               {/* header - logo */}
               <div className="flex flex-col items-center text-center gap-2">
                 <a href="/" className="mx-auto block w-fit text-center">
@@ -63,28 +85,36 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                   <Label htmlFor="lastname" className="block-text-sm">
                     Last name
                   </Label>
-                  <Input type="text" id="lastname" placeholder="John" {...register("lastname")} />
+                  <Input
+                    type="text"
+                    id="lastname"
+                    placeholder="John"
+                    {...register("lastname")}
+                  />
 
                   {errors.lastname && (
                     <p className="text-destructive text-sm">
                       {errors.lastname.message}
                     </p>
                   )}
-
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="firstname" className="block-text-sm">
                     First name
                   </Label>
-                  <Input type="text" id="firstname" placeholder="Doe" {...register("firstname")} />
+                  <Input
+                    type="text"
+                    id="firstname"
+                    placeholder="Doe"
+                    {...register("firstname")}
+                  />
 
                   {errors.firstname && (
                     <p className="text-destructive text-sm">
                       {errors.firstname.message}
                     </p>
                   )}
-
                 </div>
               </div>
 
@@ -94,14 +124,18 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                   <Label htmlFor="username" className="block-text-sm">
                     Username
                   </Label>
-                  <Input type="text" id="username" placeholder="johndoe" {...register("username")} />
+                  <Input
+                    type="text"
+                    id="username"
+                    placeholder="johndoe"
+                    {...register("username")}
+                  />
 
                   {errors.username && (
                     <p className="text-destructive text-sm">
                       {errors.username.message}
                     </p>
                   )}
-
                 </div>
               </div>
 
@@ -110,14 +144,18 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                 <Label htmlFor="email" className="block-text-sm">
                   Email
                 </Label>
-                <Input type="text" id="email" placeholder="johndoe@example.com" {...register("email")} />
+                <Input
+                  type="text"
+                  id="email"
+                  placeholder="johndoe@example.com"
+                  {...register("email")}
+                />
 
                 {errors.email && (
                   <p className="text-destructive text-sm">
                     {errors.email.message}
                   </p>
                 )}
-
               </div>
 
               {/* password */}
@@ -125,7 +163,11 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                 <Label htmlFor="password" className="block-text-sm">
                   Password
                 </Label>
-                <Input type="text" id="password"  {...register("password")} />
+                <Input
+                  type="password"
+                  id="password"
+                  {...register("password")}
+                />
 
                 {errors.password && (
                   <p className="text-destructive text-sm">
@@ -139,7 +181,11 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                 <Label htmlFor="confirm-password" className="block-text-sm">
                   Confirm password
                 </Label>
-                <Input type="text" id="confirm-password" {...register("confirmPassword")} />
+                <Input
+                  type="password"
+                  id="confirm-password"
+                  {...register("confirmPassword")}
+                />
 
                 {errors.confirmPassword && (
                   <p className="text-destructive text-sm">
@@ -175,5 +221,5 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
         and <a href="#">Privacy Policy</a>.
       </div>
     </div>
-  )
+  );
 }

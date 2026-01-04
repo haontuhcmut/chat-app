@@ -1,22 +1,26 @@
 import api from "@/lib/axios";
 
-interface SignUpPayload {
-  username: string;
-  password: string;
-  confirm_password: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
 export const authService = {
-  signUp: async (payload: SignUpPayload) => {
+  signUp: async (
+    username: string,
+    password: string,
+    email: string,
+    first_name: string,
+    last_name: string,
+    confirm_password: string
+  ) => {
     const res = await api.post(
-      "/auth/signup",
-      payload,
+      "auth/signup",
+      { username, password, email, first_name, last_name, confirm_password },
       { withCredentials: true }
     );
+    return res.data;
+  },
 
+  verifyAccount: async (token: string) => {
+    const res = await api.get(`auth/verify/${token}`, {
+      withCredentials: true,
+    });
     return res.data;
   },
 };
