@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
 COPY . /app
 
 # Make it executable
+RUN sed -i 's/\r$//' entrypoint.sh
 RUN chmod +x entrypoint.sh
 
 # Install Python dependencies

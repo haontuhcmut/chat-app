@@ -8,7 +8,7 @@ print(ENV_PATH)
 
 
 class Settings(BaseSettings):
-    DOMAIN:str
+    DOMAIN: str
     API_VER: str
 
     DATABASE_URL: str
@@ -16,6 +16,9 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str
     SALT: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
 
     MAIL_USERNAME: str
     MAIL_PASSWORD: str

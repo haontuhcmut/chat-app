@@ -28,3 +28,12 @@ class SignUpModel(BaseModel):
         if self.password != self.confirm_password:
             raise ValueError("Passwords do not match.")
         return self
+
+class SignInModel(BaseModel):
+    email: str
+    password: str
+
+class TokenModel(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str | None = "Bearer"

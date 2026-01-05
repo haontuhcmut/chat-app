@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .schema import SignUpModel
+from .schema import SignUpModel, SignInModel
 from .services import AuthServices
 from ..core.dependency import SessionDep
 
@@ -17,4 +17,9 @@ async def signup(user: SignUpModel, session:SessionDep):
 async def verify_user_token(token: str, session: SessionDep):
     token_url_safe = await auth_services.verify_account(token, session)
     return token_url_safe
+
+@auth_router.post("/signin", status_code=200)
+async def signin(user: SignInModel, session:SessionDep):
+    user = await auth_services.signin(user, session)
+    return user
 

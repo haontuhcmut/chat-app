@@ -1,4 +1,6 @@
-from .schema import SignUpModel
+import uuid
+
+from .schema import SignUpModel, SignInModel, TokenModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.model import User
 from passlib.context import CryptContext
@@ -10,6 +12,8 @@ from ..config import Config
 from fastapi.templating import Jinja2Templates
 from ..celery_task import send_email
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
+import jwt
 
 BASE_DIR = Path(__file__).resolve().parents[1]  # /app/app
 TEMPLATE_DIR = BASE_DIR / "html_template"
@@ -18,8 +22,27 @@ templates = Jinja2Templates(directory=TEMPLATE_DIR)
 pwd_context = CryptContext(schemes=["sha512_crypt"], deprecated="auto")
 
 
-def hashed_password(password: str) -> str:
+def get_hashed_password(password: str) -> str:
     return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def create_access_token(
+    data_dict: dict,
+    expires_delta: timedelta | None = None,
+    refresh: bool | None = False,
+):
+    to_encode = data_dict.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4()), "refresh": refresh})
+    encoded_jwt = jwt.encode(to_encode, Config.SECRET_KEY, algorithm=Config.ALGORITHM)
+    return encoded_jwt
 
 
 class AuthServices:
@@ -33,14 +56,16 @@ class AuthServices:
             existing_user = result.first()
             if existing_user:
                 if existing_user.username == user_data.username:
-                    raise HTTPException(status_code=400, detail="Username already exists")
+                    raise HTTPException(
+                        status_code=400, detail="Username already exists"
+                    )
                 if existing_user.email == user_data.email:
                     raise HTTPException(status_code=400, detail="Email already exists")
 
             # Create new user
             data_dict = user_data.model_dump(exclude="password")
             new_user = User(**data_dict)
-            new_user.hashed_password = hashed_password(password=user_data.password)
+            new_user.hashed_password = get_hashed_password(password=user_data.password)
             new_user.role = "user"
             session.add(new_user)
             await session.flush()
@@ -82,3 +107,28 @@ class AuthServices:
                 content={"message": "User verified"},
                 status_code=200,
             )
+
+    async def signin(self, signin_data: SignInModel, session: AsyncSession):
+        email = signin_data.email
+        password = signin_data.password
+        stmt = select(User).where(User.email == email)
+        result = await session.exec(stmt)
+        user = result.first()
+        if not user or not verify_password(password, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Incorrect email or password")
+
+        # create access token
+        access_token = create_access_token(
+            data_dict={"email": user.email, "user_id": str(user.id), "role": user.role},
+            expires_delta=timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES),
+            refresh=False,
+        )
+        # create refresh token
+        refresh_token = create_access_token(
+            data_dict={"email": user.email, "user_id": str(user.id), "role": user.role},
+            expires_delta=timedelta(days=Config.REFRESH_TOKEN_EXPIRE_DAYS),
+            refresh=True,
+        )
+        # return access and refresh token
+        return TokenModel(access_token=access_token, refresh_token=refresh_token)
+

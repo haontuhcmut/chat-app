@@ -7,7 +7,7 @@ echo "Migrations completed successfully"
 
 echo "Starting Celery worker..."
 celery -A app.celery_task.c_app worker -l info &
-CELERY_PID=$!
+#CELERY_PID=$!
 
 echo "Starting FastAPI application..."
 if [ "$ENVIRONMENT" = "development" ]; then
@@ -16,5 +16,5 @@ else
     uvicorn app.main:app --host 0.0.0.0 --port 8000
 fi
 
-# Wait for Celery worker to exit
-wait $CELERY_PID
+## Wait for Celery worker to exit
+#wait $CELERY_PID
