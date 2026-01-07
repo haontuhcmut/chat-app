@@ -7,12 +7,12 @@ const VerifyAccount = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const navigate = useNavigate();
-  const hasVerified = useRef(false); // ← ADD THIS
+  const hasVerified = useRef(false);
 
   const { verifyToken, verifyAccountStatus } = useAuthStore();
 
   useEffect(() => {
-    if (!token || hasVerified.current) return; // ← PREVENTS 2ND CALL
+    if (!token || hasVerified.current) return;
     hasVerified.current = true;
     verifyToken(token);
   }, [token, verifyToken]);
@@ -34,6 +34,6 @@ const VerifyAccount = () => {
     );
   }
 
-  return null; // ← SIMPLER: no empty div
+  return null;
 };
 export default VerifyAccount;
