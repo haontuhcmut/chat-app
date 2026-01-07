@@ -7,6 +7,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,
   loading: false,
+  verifyAccountStatus: "idle",
 
   signUp: async (
     username,
@@ -27,10 +28,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         lastName,
         confirmPassowrd
       );
-      toast.success("Registration successful. Please check your email to verify.");
+      toast.success(
+        "Registration successful. Please check your email to verify."
+      );
     } catch (error) {
       console.error(error);
       toast.error("Registration failed");
+    } finally {
+      set({ loading: false });
+    }
+  },
+  verifyToken: async (token: string) => {
+    set({ loading: true, verifyAccountStatus: "loading" });
+
+    try {
+      await authService.verifyToken(token);
+
+      set({ verifyAccountStatus: "success" });
+      toast.success(
+        "Account successfully verified. Please go to sign in page."
+      );
+    } catch (error) {
+      console.error(error);
+      set({ verifyAccountStatus: "error" });
+      toast.error("Verification link is invalid. Please try again!");
     } finally {
       set({ loading: false });
     }

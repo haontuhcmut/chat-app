@@ -1,9 +1,13 @@
 import type { User } from "./user";
 
+export type VerifyAccountStatus = "idle" | "loading" | "success" | "error";
+
 export interface AuthState {
   accessToken: string | null;
   user: User | null;
   loading: boolean;
+
+  verifyAccountStatus: VerifyAccountStatus;
 
   signUp: (
     username: string,
@@ -13,4 +17,6 @@ export interface AuthState {
     lastName: string,
     confirmPassowrd: string
   ) => Promise<void>;
+
+  verifyToken: (token: string) => Promise<void>;
 }

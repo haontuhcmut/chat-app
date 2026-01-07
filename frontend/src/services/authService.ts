@@ -17,7 +17,7 @@ export const authService = {
     return res.data;
   },
 
-  verifyAccount: async (token: string) => {
+  verifyToken: async (token: string) => {
     const res = await api.get(`auth/verify/${token}`, {
       withCredentials: true,
     });
