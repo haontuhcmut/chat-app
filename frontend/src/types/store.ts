@@ -19,4 +19,6 @@ export interface AuthState {
   ) => Promise<void>;
 
   verifyToken: (token: string) => Promise<void>;
+
+  signIn: (email: string, password: string) => Promise<void>;
 }
