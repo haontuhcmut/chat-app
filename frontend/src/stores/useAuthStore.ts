@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { toast } from "sonner";
 import { authService } from "@/services/authService";
 import type { AuthState } from "@/types/store";
-import api from "@/lib/axios";
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
@@ -66,7 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ accessToken });
 
-      toast.success("Welcome to come back!");
+      toast.success("Welcome back!");
     } catch (error) {
       console.error(error);
       toast.error("Sign in failed!");

@@ -1,9 +1,13 @@
+import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 
-const VerifyAccount = () => {
+export function VerifyAccount({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const navigate = useNavigate();
@@ -25,7 +29,7 @@ const VerifyAccount = () => {
 
   if (verifyAccountStatus === "loading") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-8">
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
         <Spinner className="size-12 mb-4" />
         <p className="text-lg text-muted-foreground">
           Verifying your account...
@@ -35,5 +39,5 @@ const VerifyAccount = () => {
   }
 
   return null;
-};
+}
 export default VerifyAccount;

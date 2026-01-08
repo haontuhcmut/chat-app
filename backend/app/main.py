@@ -25,9 +25,9 @@ app = FastAPI(
 register_middleware(app)
 
 
-# Heath check
-@app.get(f"/{version_prefix}/heath", tags=["Heath"])
-async def heath():
+# Health check
+@app.get(f"/{version_prefix}/health", tags=["Health"])
+async def health():
     return JSONResponse(content={"message": "Welcome to Chat app!"}, status_code=200)
 
 # Add routes
