@@ -1,12 +1,14 @@
 import uuid
+from fastapi.security import OAuth2PasswordBearer
 
-from .schema import SignUpModel, SignInModel, TokenModel
+from .schema import SignUpModel, TokenModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.model import User
-from passlib.context import CryptContext
 from sqlmodel import select, or_
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
+from fastapi import Response
+
 from ..utility.url_safe_token import encode_url_safe_token, decode_url_safe_token
 from ..config import Config
 from fastapi.templating import Jinja2Templates
@@ -14,20 +16,22 @@ from ..celery_task import send_email
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import jwt
+from typing import Any, Annotated
+from pwdlib import PasswordHash
 
 BASE_DIR = Path(__file__).resolve().parents[1]  # /app/app
 TEMPLATE_DIR = BASE_DIR / "html_template"
 
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
-pwd_context = CryptContext(schemes=["sha512_crypt"], deprecated="auto")
-
+password_hasher = PasswordHash.recommended()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{Config.DOMAIN}/{Config.API_VER}/auth/signin")
 
 def get_hashed_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return password_hasher.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return password_hasher.verify(plain_password, hashed_password)
 
 
 def create_access_token(
@@ -108,27 +112,58 @@ class AuthServices:
                 status_code=200,
             )
 
-    async def signin(self, signin_data: SignInModel, session: AsyncSession):
-        email = signin_data.email
-        password = signin_data.password
+    async def signin(
+        self,
+        form_data: Any,
+        response: Response,
+        session: AsyncSession,
+    ):
+        """username is default in OAuth2PasswordRequestForm. In this case convert email to username"""
+        email = form_data.username
+        password = form_data.password
         stmt = select(User).where(User.email == email)
         result = await session.exec(stmt)
         user = result.first()
         if not user or not verify_password(password, user.hashed_password):
-            raise HTTPException(status_code=400, detail="Incorrect email or password")
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
-        # create access token
+        # Create access token
         access_token = create_access_token(
-            data_dict={"email": user.email, "user_id": str(user.id), "role": user.role},
+            data_dict={
+                "email": user.email,
+                "username": user.username,
+                "role": user.role,
+                "jti": str(uuid.uuid4()),
+            },
             expires_delta=timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES),
             refresh=False,
         )
-        # create refresh token
+
+        # Create refresh token
         refresh_token = create_access_token(
-            data_dict={"email": user.email, "user_id": str(user.id), "role": user.role},
+            data_dict={
+                "email": user.email,
+                "username": user.username,
+                "role": user.role,
+                "jti": str(uuid.uuid4()),
+            },
             expires_delta=timedelta(days=Config.REFRESH_TOKEN_EXPIRE_DAYS),
             refresh=True,
         )
-        # return access and refresh token
-        return TokenModel(access_token=access_token, refresh_token=refresh_token)
+
+        # HttpOnly cookie
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True, # Prevents JavaScript from accessing the cookie (security enhancement)
+            secure=False, # Ensure the cookie is only sent over HTTPS (essential in production)
+            samesite="strict", # Controls cross-site cookie behavior
+            max_age=3600 * 24 * 7  # Cookie expiration time in seconds
+        )
+
+        return TokenModel(access_token=access_token)
 

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 import re
+from datetime import datetime
 
 class SignUpModel(BaseModel):
     email: str
@@ -35,5 +36,11 @@ class SignInModel(BaseModel):
 
 class TokenModel(BaseModel):
     access_token: str
-    refresh_token: str
-    token_type: str | None = "Bearer"
+    token_type: str | None = "bearer"
+
+class UserModel(BaseModel):
+    email: str
+    username: str
+    is_verified: bool
+    role: str
+    created_at: datetime

@@ -19,6 +19,9 @@ app = FastAPI(
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
+    openapi_url=f"/{Config.API_VER}/openapi.json",
+    docs_url=f"/{Config.API_VER}/docs",
+    redoc_url=f"/{Config.API_VER}/redoc",
 )
 
 # Add middleware
