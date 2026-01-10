@@ -12,7 +12,7 @@ from typing import Annotated
 from sqlmodel import select
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"{Config.DOMAIN}/{Config.API_VER}/auth/signin"
+    tokenUrl=f"/{Config.API_VER}/auth/signin"
 )
 
 

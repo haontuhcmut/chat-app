@@ -1,13 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from fastapi.params import Depends
 from fastapi import Security
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from .dependency import AccessTokenBearer, get_current_user
 
-from .schema import SignUpModel, UserModel
+from .schema import SignUpModel, UserModel, TokenModel
 from .services import AuthServices
 from ..core.dependency import SessionDep
 from ..core.redis import add_jti_blocklist
@@ -15,6 +15,7 @@ from ..core.redis import add_jti_blocklist
 
 auth_services = AuthServices()
 auth_router = APIRouter()
+
 
 
 @auth_router.post("/signup", status_code=200)
@@ -31,10 +32,19 @@ async def verify_user_token(token: str, session: SessionDep):
 
 @auth_router.post("/signin", status_code=200)
 async def signin(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], response: Response, session: SessionDep
 ):
-    user = await auth_services.signin(form_data, session)
-    return user
+    access_token, refresh_token = await auth_services.signin(form_data, session)
+    # HttpOnly cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,  # Prevents JavaScript from accessing the cookie (security enhancement)
+        secure=False,  # Ensure the cookie is only sent over HTTPS (essential in production)
+        samesite="strict",  # Controls cross-site cookie behavior
+        max_age=3600 * 24 * 7,  # Cookie expiration time in seconds
+    )
+    return TokenModel(access_token=access_token)
 
 
 @auth_router.post("/me")

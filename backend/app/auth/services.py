@@ -1,13 +1,11 @@
 import uuid
-from fastapi.security import OAuth2PasswordBearer
 
-from .schema import SignUpModel, TokenModel
+from .schema import SignUpModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.model import User
 from sqlmodel import select, or_
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
-from fastapi import Response
 
 from ..utility.url_safe_token import encode_url_safe_token, decode_url_safe_token
 from ..config import Config
@@ -16,7 +14,7 @@ from ..celery_task import send_email
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import jwt
-from typing import Any, Annotated
+from typing import Any
 from pwdlib import PasswordHash
 
 BASE_DIR = Path(__file__).resolve().parents[1]  # /app/app
@@ -24,7 +22,7 @@ TEMPLATE_DIR = BASE_DIR / "html_template"
 
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 password_hasher = PasswordHash.recommended()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{Config.DOMAIN}/{Config.API_VER}/auth/signin")
+
 
 def get_hashed_password(password: str) -> str:
     return password_hasher.hash(password)
@@ -115,7 +113,6 @@ class AuthServices:
     async def signin(
         self,
         form_data: Any,
-        response: Response,
         session: AsyncSession,
     ):
         """username is default in OAuth2PasswordRequestForm. In this case convert email to username"""
@@ -155,15 +152,4 @@ class AuthServices:
             refresh=True,
         )
 
-        # HttpOnly cookie
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True, # Prevents JavaScript from accessing the cookie (security enhancement)
-            secure=False, # Ensure the cookie is only sent over HTTPS (essential in production)
-            samesite="strict", # Controls cross-site cookie behavior
-            max_age=3600 * 24 * 7  # Cookie expiration time in seconds
-        )
-
-        return TokenModel(access_token=access_token)
-
+        return access_token, refresh_token
