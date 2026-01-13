@@ -25,11 +25,22 @@ export const authService = {
   },
 
   signIn: async (email: string, password: string) => {
-    const res = await api.post(
-      "auth/signin",
-      { email, password },
-      { withCredentials: true }
-    );
+    const data = new URLSearchParams();
+    data.append("username", email);
+    data.append("password", password);
+
+    const res = await api.post("auth/signin", data, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      withCredentials: true,
+    });
     return res.data;
+  },
+
+  signOut: async () => {
+    return api.post("auth/signout", null, {
+      withCredentials: true,
+    });
   },
 };

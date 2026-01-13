@@ -9,6 +9,8 @@ export interface AuthState {
 
   verifyAccountStatus: VerifyAccountStatus;
 
+  clearState: () => void;
+
   signUp: (
     username: string,
     password: string,
@@ -21,4 +23,5 @@ export interface AuthState {
   verifyToken: (token: string) => Promise<void>;
 
   signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }

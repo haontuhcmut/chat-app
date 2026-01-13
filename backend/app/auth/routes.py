@@ -52,7 +52,7 @@ async def get_current_user(user: Annotated[UserModel, Depends(get_current_user)]
     return user
 
 
-@auth_router.get("/signout", status_code=200)
+@auth_router.post("/signout", status_code=200)
 async def signout(token_detail: Annotated[dict, Security(AccessTokenBearer())]):
     jti = token_detail["jti"]
     await add_jti_blocklist(jti)

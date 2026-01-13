@@ -1,9 +1,12 @@
-import React from 'react'
+import React from "react";
+import Signout from "@/components/auth/signout";
 
 const ChatAppPage = () => {
-    return (
-        <div>ChatAppPage</div>
-    )
-}
+  return (
+    <div>
+      <Signout />
+    </div>
+  );
+};
 
-export default ChatAppPage
+export default ChatAppPage;
