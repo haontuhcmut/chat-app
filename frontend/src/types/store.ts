@@ -8,6 +8,8 @@ export interface AuthState {
   loading: boolean;
   authStatus: authStatus;
 
+  setAccessToken: (accessToken: string) => void;
+
   clearState: () => void;
 
   signUp: (
@@ -24,4 +26,5 @@ export interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   fetchMe: () => Promise<void>;
+  refresh: () => Promise<void>;
 }

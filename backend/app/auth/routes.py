@@ -72,7 +72,7 @@ async def signout(
     return JSONResponse(status_code=200, content={"message": "Successfully logged out"})
 
 
-@auth_router.post("/refresh_token")
+@auth_router.post("/refresh")
 async def token_refresh(
     refresh_token_payload: Annotated[dict, Depends(RefreshTokenBearer())],
 ):
