@@ -9,7 +9,7 @@ from sqlmodel import select, or_
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 
-from ..core.redis import add_jti_blocklist
+from ..core.redis import add_jti_blocklist, token_in_jti_blocklist
 from ..utility.url_safe_token import encode_url_safe_token, decode_url_safe_token
 from ..config import Config
 from fastapi.templating import Jinja2Templates
@@ -45,7 +45,7 @@ def create_access_token(
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire, "jti": str(uuid.uuid4()), "refresh": refresh})
     encoded_jwt = jwt.encode(to_encode, Config.SECRET_KEY, algorithm=Config.ALGORITHM)
     return encoded_jwt
@@ -157,17 +157,3 @@ class AuthServices:
         )
 
         return access_token, refresh_token
-
-    async def signout(self, refresh_token: str | None):
-        if not refresh_token:
-            return JSONResponse(
-                status_code=400, content={"message": "Missing refresh token"}
-            )
-        try:
-            payload = jwt.decode(refresh_token, Config.SECRET_KEY, Config.ALGORITHM)
-            jti = payload.get("jti")
-            if jti:
-                await add_jti_blocklist(jti)
-        except InvalidTokenError:
-            # Token invalid / expired → still logout
-            pass

@@ -1,13 +1,16 @@
 from typing import Annotated
+import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, Response, Request
+from fastapi import APIRouter, Response, HTTPException
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from .dependency import AccessTokenBearer, get_current_user
+from .dependency import get_current_user, RefreshTokenBearer
 
 from .schema import SignUpModel, UserModel, TokenModel
-from .services import AuthServices
+from .services import AuthServices, create_access_token
+from ..config import Config
 from ..core.dependency import SessionDep
 from ..core.redis import add_jti_blocklist
 
@@ -53,9 +56,13 @@ async def get_current_user(user: Annotated[UserModel, Depends(get_current_user)]
 
 
 @auth_router.post("/signout")
-async def signout(request: Request, response: Response):
-    refresh_token = request.cookies.get("refresh_token")
-    await auth_services.signout(refresh_token)
+async def signout(
+    response: Response,
+    refresh_token_payload: Annotated[dict, Depends(RefreshTokenBearer())],
+):
+    print(refresh_token_payload)
+    jti = refresh_token_payload["jti"]
+    await add_jti_blocklist(jti)
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
@@ -63,3 +70,26 @@ async def signout(request: Request, response: Response):
         samesite="strict",
     )
     return JSONResponse(status_code=200, content={"message": "Successfully logged out"})
+
+
+@auth_router.post("/refresh_token")
+async def token_refresh(
+    refresh_token_payload: Annotated[dict, Depends(RefreshTokenBearer())],
+):
+    exp_time = refresh_token_payload.get("exp")
+    if datetime.fromtimestamp(exp_time) > datetime.now():
+        new_token = create_access_token(
+            data_dict={
+                "email": refresh_token_payload.get("email"),
+                "username": refresh_token_payload.get("username"),
+                "role": refresh_token_payload.get("role"),
+                "jti": str(uuid.uuid4()),
+            },
+            refresh=False,
+        )
+        return TokenModel(access_token=new_token)
+    raise HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
