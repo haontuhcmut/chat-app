@@ -47,7 +47,7 @@ async def signin(
     return TokenModel(access_token=access_token)
 
 
-@auth_router.post("/me")
+@auth_router.get("/me")
 async def get_current_user(user: Annotated[UserModel, Depends(get_current_user)]):
     return user
 

@@ -1,13 +1,12 @@
 import type { User } from "./user";
 
-export type VerifyAccountStatus = "idle" | "loading" | "success" | "error";
+export type authStatus = "idle" | "loading" | "success" | "error";
 
 export interface AuthState {
   accessToken: string | null;
   user: User | null;
   loading: boolean;
-
-  verifyAccountStatus: VerifyAccountStatus;
+  authStatus: authStatus;
 
   clearState: () => void;
 
@@ -24,4 +23,5 @@ export interface AuthState {
 
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  fetchMe: () => Promise<void>;
 }

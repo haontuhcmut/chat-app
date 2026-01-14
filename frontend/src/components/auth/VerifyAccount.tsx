@@ -13,7 +13,7 @@ export function VerifyAccount({
   const navigate = useNavigate();
   const hasVerified = useRef(false);
 
-  const { verifyToken, verifyAccountStatus } = useAuthStore();
+  const { verifyToken, authStatus } = useAuthStore();
 
   useEffect(() => {
     if (!token || hasVerified.current) return;
@@ -22,12 +22,12 @@ export function VerifyAccount({
   }, [token, verifyToken]);
 
   useEffect(() => {
-    if (verifyAccountStatus === "success") {
+    if (authStatus === "success") {
       navigate("/signin", { replace: true });
     }
-  }, [verifyAccountStatus, navigate]);
+  }, [authStatus, navigate]);
 
-  if (verifyAccountStatus === "loading") {
+  if (authStatus === "loading") {
     return (
       <div className={cn("flex flex-col gap-6", className)} {...props}>
         <Spinner className="size-12 mb-4" />

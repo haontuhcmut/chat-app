@@ -1,10 +1,15 @@
-import React from "react";
-import Signout from "@/components/auth/signout";
+import SignOut from "@/components/auth/signout";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const ChatAppPage = () => {
+  const user = useAuthStore((s) => s.user);
+
+  console.log(user)
+
   return (
     <div>
-      <Signout />
+      {user?.username}
+      <SignOut />
     </div>
   );
 };

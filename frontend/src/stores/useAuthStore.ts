@@ -7,7 +7,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,
   loading: false,
-  verifyAccountStatus: "idle",
+  authStatus: "idle",
 
   clearState: () => {
     set({ accessToken: null, user: null, loading: false });
@@ -43,18 +43,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   verifyToken: async (token: string) => {
-    set({ loading: true, verifyAccountStatus: "loading" });
-
+    set({ loading: true, status: "loading" });
     try {
       await authService.verifyToken(token);
-
-      set({ verifyAccountStatus: "success" });
+      set({ authStatus: "success" });
       toast.success(
         "Account successfully verified. Please go to sign in page."
       );
     } catch (error) {
       console.error(error);
-      set({ verifyAccountStatus: "error" });
+      set({ authStatus: "error" });
       toast.error("Verification link is invalid. Please try again!");
     } finally {
       set({ loading: false });
@@ -68,10 +66,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { access_token } = await authService.signIn(email, password);
 
       set({ accessToken: access_token });
+
+      await get().fetchMe();
+
       toast.success("Welcome back!");
     } catch (error) {
       console.error(error);
       toast.error("Sign in failed!");
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -82,6 +85,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       toast.success("You've been signed out");
     } catch (error) {
       toast.error("An error occurred during sign-out. Please try again.");
+    }
+  },
+
+  fetchMe: async () => {
+    try {
+      set({ loading: true });
+      const user = await authService.fetchMe();
+      set({ user: user });
+    } catch (error) {
+      console.error(error);
+      set({ accessToken: null, user: null });
+      toast.error("Failed fetch user. Please try again!");
+    } finally {
+      set({ loading: false });
     }
   },
 }));
