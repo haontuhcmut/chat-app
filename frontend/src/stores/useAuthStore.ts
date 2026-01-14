@@ -65,10 +65,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ loading: true });
 
-      const { accessToken } = await authService.signIn(email, password);
+      const { access_token } = await authService.signIn(email, password);
 
-      set({ accessToken });
-
+      set({ accessToken: access_token });
       toast.success("Welcome back!");
     } catch (error) {
       console.error(error);
@@ -78,8 +77,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     try {
-      get().clearState();
       await authService.signOut();
+      get().clearState();
       toast.success("You've been signed out");
     } catch (error) {
       toast.error("An error occurred during sign-out. Please try again.");

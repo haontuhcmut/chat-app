@@ -1,5 +1,7 @@
 import uuid
 
+from pygments.lexers import q
+
 from .schema import SignUpModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.model import User
@@ -7,6 +9,7 @@ from sqlmodel import select, or_
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 
+from ..core.redis import add_jti_blocklist
 from ..utility.url_safe_token import encode_url_safe_token, decode_url_safe_token
 from ..config import Config
 from fastapi.templating import Jinja2Templates
@@ -14,6 +17,7 @@ from ..celery_task import send_email
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import jwt
+from jwt.exceptions import InvalidTokenError
 from typing import Any
 from pwdlib import PasswordHash
 
@@ -153,3 +157,17 @@ class AuthServices:
         )
 
         return access_token, refresh_token
+
+    async def signout(self, refresh_token: str | None):
+        if not refresh_token:
+            return JSONResponse(
+                status_code=400, content={"message": "Missing refresh token"}
+            )
+        try:
+            payload = jwt.decode(refresh_token, Config.SECRET_KEY, Config.ALGORITHM)
+            jti = payload.get("jti")
+            if jti:
+                await add_jti_blocklist(jti)
+        except InvalidTokenError:
+            # Token invalid / expired → still logout
+            pass

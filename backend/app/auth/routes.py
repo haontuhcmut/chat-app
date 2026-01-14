@@ -1,8 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Response, Request
 from fastapi.params import Depends
-from fastapi import Security
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from .dependency import AccessTokenBearer, get_current_user
@@ -17,7 +16,6 @@ auth_services = AuthServices()
 auth_router = APIRouter()
 
 
-
 @auth_router.post("/signup", status_code=200)
 async def signup(user: SignUpModel, session: SessionDep):
     new_user = await auth_services.signup(user, session)
@@ -30,9 +28,11 @@ async def verify_user_token(token: str, session: SessionDep):
     return token_url_safe
 
 
-@auth_router.post("/signin", status_code=200)
+@auth_router.post("/signin")
 async def signin(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], response: Response, session: SessionDep
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    response: Response,
+    session: SessionDep,
 ):
     access_token, refresh_token = await auth_services.signin(form_data, session)
     # HttpOnly cookie
@@ -52,11 +52,14 @@ async def get_current_user(user: Annotated[UserModel, Depends(get_current_user)]
     return user
 
 
-@auth_router.post("/signout", status_code=200)
-async def signout(token_detail: Annotated[dict, Security(AccessTokenBearer())]):
-    jti = token_detail["jti"]
-    await add_jti_blocklist(jti)
-    return JSONResponse(
-        status_code=200,
-        content={"message": "User signed out"},
+@auth_router.post("/signout")
+async def signout(request: Request, response: Response):
+    refresh_token = request.cookies.get("refresh_token")
+    await auth_services.signout(refresh_token)
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=False,
+        samesite="strict",
     )
+    return JSONResponse(status_code=200, content={"message": "Successfully logged out"})

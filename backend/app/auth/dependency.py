@@ -11,9 +11,7 @@ from jwt.exceptions import InvalidTokenError
 from typing import Annotated
 from sqlmodel import select
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"/{Config.API_VER}/auth/signin"
-)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{Config.API_VER}/auth/signin")
 
 
 class TokenBearer:
@@ -28,21 +26,18 @@ class TokenBearer:
             payload = jwt.decode(
                 token, Config.SECRET_KEY, algorithms=[f"{Config.ALGORITHM}"]
             )
-            jti = payload.get("jti")
-            if jti is None or await token_in_jti_blocklist(jti=jti):
-                raise self.credentials_exception
-            self.verify_token(payload)
+            await self.verify_token(payload)
             return payload
 
         except InvalidTokenError:
             raise self.credentials_exception
 
-    def verify_token(self, payload: dict) -> None:
+    async def verify_token(self, payload: dict) -> None:
         pass
 
 
 class AccessTokenBearer(TokenBearer):
-    def verify_token(self, payload: dict) -> None:
+    async def verify_token(self, payload: dict) -> None:
         if payload.get("refresh"):
             raise HTTPException(
                 status_code=401,
@@ -52,13 +47,16 @@ class AccessTokenBearer(TokenBearer):
 
 
 class RefreshTokenBearer(TokenBearer):
-    def verify_token(self, payload: dict) -> None:
+    async def verify_token(self, payload: dict) -> None:
         if not payload.get("refresh"):
             raise HTTPException(
                 status_code=401,
                 detail="Refresh token is required.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        jti = payload.get("jti")
+        if jti is None or await token_in_jti_blocklist(jti=jti):
+            raise self.credentials_exception
 
 
 async def get_current_user(
