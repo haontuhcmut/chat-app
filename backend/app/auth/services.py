@@ -140,7 +140,7 @@ class AuthServices:
                 "role": user.role,
                 "jti": str(uuid.uuid4()),
             },
-            expires_delta=timedelta(seconds=Config.ACCESS_TOKEN_EXPIRE_MINUTES),
+            expires_delta=timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES),
             refresh=False,
         )
 

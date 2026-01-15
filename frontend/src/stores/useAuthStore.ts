@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   verifyToken: async (token: string) => {
-    set({ loading: true, status: "loading" });
+    set({ loading: true, authStatus: "loading" });
     try {
       await authService.verifyToken(token);
       set({ authStatus: "success" });
@@ -96,16 +96,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ loading: true });
       const user = await authService.fetchMe();
-      set({ user: user });
+
+      set({ user });
     } catch (error) {
       console.error(error);
-      set({ accessToken: null, user: null });
-
+      set({ user: null, accessToken: null });
       toast.error("Failed fetch user. Please try again!");
     } finally {
       set({ loading: false });
     }
   },
+
   refresh: async () => {
     try {
       set({ loading: true });

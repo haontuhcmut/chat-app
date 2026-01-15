@@ -26,10 +26,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // do not apis checking
+
     if (
       originalRequest.url.includes("/auth/signin") ||
-      originalRequest.url.includes("/auth/signin") ||
-      originalRequest.url.includes("/auth/signin")
+      originalRequest.url.includes("/auth/signup") ||
+      originalRequest.url.includes("/auth/refresh")
     ) {
       return Promise.reject(error);
     }
