@@ -1,4 +1,4 @@
-import Signout from "@/components/auth/signout";
+import Logout from "@/components/auth/Logout";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const ChatAppPage = () => {
@@ -7,7 +7,7 @@ const ChatAppPage = () => {
   return (
     <div>
       {user?.username}
-      <Signout />
+      <Logout />
     </div>
   );
 };

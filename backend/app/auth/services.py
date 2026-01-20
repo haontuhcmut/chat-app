@@ -142,7 +142,6 @@ class AuthServices:
 
         # Create refresh token
         user.jti_current_token = str(uuid.uuid4())
-        print(user.jti_current_token)
         session.add(user)
         await session.commit()
 

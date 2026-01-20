@@ -7,6 +7,7 @@ const ProtectedRoute = () => {
   const [starting, setStarting] = useState(true);
 
   const init = async () => {
+    // có thể xảy ra khi refresh trang
     if (!accessToken) {
       await refresh();
     }
@@ -25,7 +26,7 @@ const ProtectedRoute = () => {
   if (starting || loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        Loading page...
+        Loading...
       </div>
     );
   }

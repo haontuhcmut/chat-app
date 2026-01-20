@@ -9,25 +9,25 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// add authentication header request
+// gắn access token vào req header
 api.interceptors.request.use((config) => {
   const { accessToken } = useAuthStore.getState();
 
   if (accessToken) {
+    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
   return config;
 });
 
-// call refresh api automation when was exprired accesstoken
+//tự động gọi refresh api khi access token hết hạn
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const originalRequest = error.config;
 
-    // do not apis checking
-
+    // những api không cần check
     if (
       originalRequest.url.includes("/auth/signin") ||
       originalRequest.url.includes("/auth/signup") ||
@@ -38,19 +38,23 @@ api.interceptors.response.use(
 
     originalRequest._retryCount = originalRequest._retryCount || 0;
 
-    if (error.response?.status === 401 && originalRequest._retryCount < 4) {
+    if (error.response?.status === 403 && originalRequest._retryCount < 4) {
       originalRequest._retryCount += 1;
 
       try {
         const res = await api.post("/auth/refresh", { withCredentials: true });
-        const newAccessToken = res.data.access_token;
+        const newAccessToken = res.data.accessToken;
+
         useAuthStore.getState().setAccessToken(newAccessToken);
-        originalRequest.header.Authorization = `Bearer ${newAccessToken}`;
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
       } catch (refreshError) {
         useAuthStore.getState().clearState();
         return Promise.reject(refreshError);
       }
     }
+
     return Promise.reject(error);
   }
 );

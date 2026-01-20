@@ -2,10 +2,10 @@ import { Button } from "../ui/button";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNavigate } from "react-router";
 
-const Signout = () => {
+const Logout = () => {
   const { signOut } = useAuthStore();
   const navigate = useNavigate();
-  const handleSignout = async () => {
+  const handleLogout = async () => {
     try {
       await signOut();
       navigate("/signin");
@@ -14,7 +14,7 @@ const Signout = () => {
     }
   };
 
-  return <Button onClick={handleSignout}>Signout</Button>;
+  return <Button onClick={handleLogout}>Logout</Button>;
 };
 
-export default Signout;
+export default Logout;

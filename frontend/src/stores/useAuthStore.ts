@@ -69,9 +69,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const { accessToken } = await authService.signIn(email, password);
 
-      get().setAccessToken(accessToken);
-
-      await get().fetchMe();
+      set({ accessToken });
 
       toast.success("Welcome back!");
     } catch (error) {
