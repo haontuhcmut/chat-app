@@ -3,8 +3,11 @@ from fastapi.responses import JSONResponse
 from .middleware import register_middleware
 from .auth.routes import auth_router
 from .config import Config
+from .core.logging import setup_logging
 
 version_prefix = Config.API_VER
+
+setup_logging()
 
 app = FastAPI(
     title="Chat app backend",

@@ -1,7 +1,4 @@
 import uuid
-
-from pygments.lexers import q
-
 from .schema import SignUpModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from ..core.model import User
@@ -9,7 +6,6 @@ from sqlmodel import select, or_
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 
-from ..core.redis import add_jti_blocklist, token_in_jti_blocklist
 from ..utility.url_safe_token import encode_url_safe_token, decode_url_safe_token
 from ..config import Config
 from fastapi.templating import Jinja2Templates
@@ -17,7 +13,6 @@ from ..celery_task import send_email
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import jwt
-from jwt.exceptions import InvalidTokenError
 from typing import Any
 from pwdlib import PasswordHash
 
@@ -36,7 +31,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return password_hasher.verify(plain_password, hashed_password)
 
 
-def create_access_token(
+def create_token(
     data_dict: dict,
     expires_delta: timedelta | None = None,
     refresh: bool | None = False,
@@ -45,8 +40,10 @@ def create_access_token(
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "jti": str(uuid.uuid4()), "refresh": refresh})
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+    to_encode.update({"exp": expire, "refresh": refresh})
     encoded_jwt = jwt.encode(to_encode, Config.SECRET_KEY, algorithm=Config.ALGORITHM)
     return encoded_jwt
 
@@ -119,7 +116,6 @@ class AuthServices:
         form_data: Any,
         session: AsyncSession,
     ):
-        """username is default in OAuth2PasswordRequestForm. In this case convert email to username"""
         email = form_data.username
         password = form_data.password
         stmt = select(User).where(User.email == email)
@@ -133,7 +129,7 @@ class AuthServices:
             )
 
         # Create access token
-        access_token = create_access_token(
+        access_token = create_token(
             data_dict={
                 "email": user.email,
                 "username": user.username,
@@ -145,12 +141,17 @@ class AuthServices:
         )
 
         # Create refresh token
-        refresh_token = create_access_token(
+        user.jti_current_token = str(uuid.uuid4())
+        print(user.jti_current_token)
+        session.add(user)
+        await session.commit()
+
+        refresh_token = create_token(
             data_dict={
                 "email": user.email,
                 "username": user.username,
                 "role": user.role,
-                "jti": str(uuid.uuid4()),
+                "jti":  user.jti_current_token,
             },
             expires_delta=timedelta(days=Config.REFRESH_TOKEN_EXPIRE_DAYS),
             refresh=True,

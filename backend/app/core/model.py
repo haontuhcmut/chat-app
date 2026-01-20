@@ -13,6 +13,7 @@ class User(SQLModel, table=True):
     hashed_password: str = Field(default=None, exclude=True)
     is_verified: bool = Field(default=False)
     role: str = Field(default="user", max_length=16, nullable=False)
+    jti_current_token: str | None = Field(default=None, nullable=True)
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now())
     )

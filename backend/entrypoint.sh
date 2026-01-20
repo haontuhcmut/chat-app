@@ -11,9 +11,9 @@ celery -A app.celery_task.c_app worker -l info &
 
 echo "Starting FastAPI application..."
 if [ "$ENVIRONMENT" = "development" ]; then
-    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
 else
-    uvicorn app.main:app --host 0.0.0.0 --port 8000
+    uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info
 fi
 
 ## Wait for Celery worker to exit

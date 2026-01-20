@@ -4,13 +4,11 @@ from datetime import datetime
 
 from fastapi import APIRouter, Response, HTTPException
 from fastapi.params import Depends
-from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from .dependency import get_current_user, RefreshTokenBearer
+from .dependency import get_current_user, AccessTokenBearer, RefreshTokenBearer
 
 from .schema import SignUpModel, UserModel, TokenModel
-from .services import AuthServices, create_access_token
-from ..config import Config
+from .services import AuthServices, create_token
 from ..core.dependency import SessionDep
 from ..core.redis import add_jti_blocklist
 
@@ -55,21 +53,23 @@ async def get_current_user(user: Annotated[UserModel, Depends(get_current_user)]
     return user
 
 
-@auth_router.post("/signout")
+@auth_router.post("/signout", status_code=200)
 async def signout(
     response: Response,
-    refresh_token_payload: Annotated[dict, Depends(RefreshTokenBearer())],
+    access_token_payload: Annotated[dict, Depends(AccessTokenBearer())],
 ):
-    print(refresh_token_payload)
-    jti = refresh_token_payload["jti"]
+    # Add access token in blocklist
+    jti = access_token_payload["jti"]
     await add_jti_blocklist(jti)
+
+    # Delete refresh token
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
         secure=False,
         samesite="strict",
     )
-    return JSONResponse(status_code=200, content={"message": "Successfully logged out"})
+    return {"message": "Successfully logged out"}
 
 
 @auth_router.post("/refresh")
@@ -78,7 +78,7 @@ async def token_refresh(
 ):
     exp_time = refresh_token_payload.get("exp")
     if datetime.fromtimestamp(exp_time) > datetime.now():
-        new_token = create_access_token(
+        new_token = create_token(
             data_dict={
                 "email": refresh_token_payload.get("email"),
                 "username": refresh_token_payload.get("username"),

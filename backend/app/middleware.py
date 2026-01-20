@@ -13,7 +13,7 @@ logger.disabled = True
 def register_middleware(app: FastAPI):
 
     @app.middleware("http")
-    async def custom_loggin(request: Request, call_next):
+    async def custom_logging(request: Request, call_next):
         start_time = time.perf_counter()
         response = await call_next(request)
         processing_time = time.perf_counter() - start_time
@@ -30,6 +30,5 @@ def register_middleware(app: FastAPI):
     )
 
     app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=["localhost", "127.0.0.1" "0.0.0.0"]
+        TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1" "0.0.0.0"]
     )
