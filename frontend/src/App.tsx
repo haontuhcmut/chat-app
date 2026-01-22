@@ -4,6 +4,7 @@ import ChatAppPage from "./pages/ChatAppPage";
 import { Toaster } from "sonner";
 import SignUpPage from "./pages/SignUpPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import VerifyAccount from "./components/auth/VerifyAccount";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           {/* public routes */}
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/verify" element={<VerifyAccount />} />
 
           {/* protectect routes */}
           <Route element={<ProtectedRoute />}>

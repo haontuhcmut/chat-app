@@ -18,7 +18,7 @@ export interface AuthState {
     email: string,
     fristName: string,
     lastName: string,
-    confirmPassowrd: string
+    confirmPassowrd: string,
   ) => Promise<void>;
 
   verifyToken: (token: string) => Promise<void>;
@@ -27,4 +27,10 @@ export interface AuthState {
   signOut: () => Promise<void>;
   fetchMe: () => Promise<void>;
   refresh: () => Promise<void>;
+}
+
+export interface ThemeState {
+  isDark: boolean;
+  toggleTheme: () => void;
+  setTheme: (dark: boolean) => void;
 }
