@@ -1,3 +1,4 @@
+from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 import re
 from datetime import datetime
@@ -39,6 +40,7 @@ class TokenModel(BaseModel):
     token_type: str | None = "bearer"
 
 class UserModel(BaseModel):
+    id: UUID
     email: str
     username: str
     is_verified: bool

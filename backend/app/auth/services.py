@@ -131,6 +131,7 @@ class AuthServices:
         # Create access token
         access_token = create_token(
             data_dict={
+                "user_id": str(user.id),
                 "email": user.email,
                 "username": user.username,
                 "role": user.role,
@@ -147,6 +148,7 @@ class AuthServices:
 
         refresh_token = create_token(
             data_dict={
+                "user_id": str(user.id),
                 "email": user.email,
                 "username": user.username,
                 "role": user.role,

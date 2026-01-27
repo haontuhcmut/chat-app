@@ -6,6 +6,7 @@ from sqlmodel import SQLModel
 from app.core.model import User
 from app.config import Config
 
+
 from alembic import context
 
 database_url = Config.DATABASE_URL_ALEMBIC

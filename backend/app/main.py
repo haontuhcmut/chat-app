@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+
+from .friends.routes import friend_router
 from .middleware import register_middleware
 from .auth.routes import auth_router
 from .config import Config
@@ -40,3 +42,5 @@ async def health():
 app.include_router(
     auth_router, prefix=f"/{version_prefix}/auth", tags=["Auth"]
 )
+
+app.include_router(friend_router, prefix=f"/{version_prefix}/friends", tags=["Friends"])

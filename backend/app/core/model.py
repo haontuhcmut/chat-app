@@ -1,7 +1,8 @@
 from sqlmodel import SQLModel, Field, Column, Relationship
+import enum
 from uuid import UUID, uuid4
 from datetime import datetime
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, func, Index, Enum
 
 
 class User(SQLModel, table=True):
@@ -110,3 +111,92 @@ class Message(SQLModel, table=True):
     )
 
     user: User | None = Relationship(back_populates="messages")
+
+
+class ConvType(str, enum.Enum):
+    direct = "direct"
+    group = "group"
+
+
+class Conversation(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    type: ConvType = Field(
+        sa_column=Column(Enum(ConvType), nullable=False)
+    )
+    last_message_id: UUID | None = Field(default=None, foreign_key="message.id")
+    last_message_content: str | None = None
+    last_message_sender_id: UUID | None = Field(default=None, foreign_key="user.id")
+    last_message_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True)))
+
+    conv_participants: list["ConvParticipant"] = Relationship(
+        back_populates="conversation"
+    )
+    group_conversation: "GroupConversation" = Relationship(
+        back_populates="conversation"
+    )
+
+
+class ConvParticipant(SQLModel, table=True):
+    __tablename__ = "conv_participant"
+
+    conv_id: UUID = Field(foreign_key="conversation.id", primary_key=True)
+    user_id: UUID = Field(foreign_key="user.id", primary_key=True)
+    joined_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now())
+    )
+
+    conversation: Conversation | None = Relationship(back_populates="conv_participants")
+
+
+class GroupConversation(SQLModel, table=True):
+    __tablename__ = "group_conversation"
+    conv_id: UUID = Field(
+        default=None, foreign_key="conversation.id", nullable=False, primary_key=True
+    )
+    name: str = Field(default=None, nullable=False)
+    created_by: UUID = Field(default=None, foreign_key="user.id", nullable=False)
+
+    conversation: Conversation = Relationship(back_populates="group_conversation")
+
+
+class ConvSeen(SQLModel, table=True):
+    __tablename__ = "conv_seen"
+
+    conv_id: UUID = Field(
+        default=None, foreign_key="conversation.id", nullable=False, primary_key=True
+    )
+    user_id: UUID = Field(
+        default=None, foreign_key="user.id", nullable=False, primary_key=True
+    )
+    seen_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now())
+    )
+
+
+class ConvUnread(SQLModel, table=True):
+    __tablename__ = "conv_unread"
+
+    user_id: UUID = Field(
+        default=None, foreign_key="user.id", nullable=False, primary_key=True
+    )
+    conv_id: UUID = Field(
+        default=None, foreign_key="conversation.id", nullable=False, primary_key=True
+    )
+    unread_count: int | None = Field(default=int(0), nullable=False)
+
+
+Index(
+    "idx_conv_last_message_at",
+    Conversation.last_message_at.desc()
+)
+
+Index(
+    "idx_conv_participant_user",
+    ConvParticipant.user_id,
+    ConvParticipant.conv_id
+)
+
+Index(
+    "idx_conv_unread_user",
+    ConvUnread.user_id
+)
