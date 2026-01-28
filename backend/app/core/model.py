@@ -11,6 +11,7 @@ class User(SQLModel, table=True):
     username: str = Field(default=None, unique=True)
     first_name: str = Field(default=None, max_length=32)
     last_name: str = Field(default=None, max_length=32)
+    avatar_url: str | None = Field(default=None, nullable=True)
     hashed_password: str = Field(default=None, exclude=True)
     is_verified: bool = Field(default=False)
     role: str = Field(default="user", max_length=16, nullable=False)

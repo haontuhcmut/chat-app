@@ -43,6 +43,7 @@ class UserModel(BaseModel):
     id: UUID
     email: str
     username: str
+    avatar_url: str | None
     is_verified: bool
     role: str
     created_at: datetime
