@@ -45,6 +45,9 @@ class User(SQLModel, table=True):
     )
     messages: list["Message"] = Relationship(back_populates="user")
 
+    conversations: list["Conversation"] = Relationship(back_populates="user")
+    conv_participants: list["ConvParticipant"] = Relationship(back_populates="user")
+
 
 class FriendRequests(SQLModel, table=True):
     __tablename__ = "friend_requests"
@@ -136,6 +139,8 @@ class Conversation(SQLModel, table=True):
         back_populates="conversation"
     )
 
+    user: User | None = Relationship(back_populates="conversations")
+
 
 class ConvParticipant(SQLModel, table=True):
     __tablename__ = "conv_participant"
@@ -147,6 +152,7 @@ class ConvParticipant(SQLModel, table=True):
     )
 
     conversation: Conversation | None = Relationship(back_populates="conv_participants")
+    user: User | None = Relationship(back_populates="conv_participants")
 
 
 class GroupConversation(SQLModel, table=True):
