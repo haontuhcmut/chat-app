@@ -3,6 +3,7 @@ import enum
 from uuid import UUID, uuid4
 from datetime import datetime
 from sqlalchemy import DateTime, func, Index, Enum
+from typing import Optional
 
 
 class User(SQLModel, table=True):
@@ -102,6 +103,7 @@ class Friend(SQLModel, table=True):
 
 class Message(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    conv_id: UUID = Field(default=None, foreign_key="conversation.id", nullable=False)
     sender_user_id: UUID = Field(default=None, foreign_key="user.id", nullable=False)
     content: str | None = Field(default=None, nullable=True)
     img_url: str | None = Field(default=None, nullable=True)
@@ -115,6 +117,7 @@ class Message(SQLModel, table=True):
     )
 
     user: User | None = Relationship(back_populates="messages")
+    conversation: "Conversation" = Relationship(back_populates="messages")
 
 
 class ConvType(str, enum.Enum):
@@ -124,10 +127,7 @@ class ConvType(str, enum.Enum):
 
 class Conversation(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    type: ConvType = Field(
-        sa_column=Column(Enum(ConvType), nullable=False)
-    )
-    last_message_id: UUID | None = Field(default=None, foreign_key="message.id")
+    type: ConvType = Field(sa_column=Column(Enum(ConvType), nullable=False))
     last_message_content: str | None = None
     last_message_sender_id: UUID | None = Field(default=None, foreign_key="user.id")
     last_message_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True)))
@@ -140,6 +140,7 @@ class Conversation(SQLModel, table=True):
     )
 
     user: User | None = Relationship(back_populates="conversations")
+    messages: list[Message] = Relationship(back_populates="conversation")
 
 
 class ConvParticipant(SQLModel, table=True):
@@ -192,18 +193,8 @@ class ConvUnread(SQLModel, table=True):
     unread_count: int | None = Field(default=int(0), nullable=False)
 
 
-Index(
-    "idx_conv_last_message_at",
-    Conversation.last_message_at.desc()
-)
+Index("idx_conv_last_message_at", Conversation.last_message_at.desc())
 
-Index(
-    "idx_conv_participant_user",
-    ConvParticipant.user_id,
-    ConvParticipant.conv_id
-)
+Index("idx_conv_participant_user", ConvParticipant.user_id, ConvParticipant.conv_id)
 
-Index(
-    "idx_conv_unread_user",
-    ConvUnread.user_id
-)
+Index("idx_conv_unread_user", ConvUnread.user_id)

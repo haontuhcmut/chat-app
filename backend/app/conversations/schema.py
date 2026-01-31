@@ -30,3 +30,10 @@ class ConversationResponse(BaseModel):
     unread_count: int
     participants: list[ParticipantResponse]
 
+class MessageResponse(BaseModel):
+    id: UUID
+    sender_user_id: UUID
+    content: str
+    img_url: str | None
+    created_at: datetime
+    updated_at: datetime

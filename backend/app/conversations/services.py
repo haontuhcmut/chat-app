@@ -1,11 +1,13 @@
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
-from .schema import CreateConvRequest, ConvType, ConversationResponse, ParticipantResponse
+from .schema import CreateConvRequest, ConvType, ConversationResponse, ParticipantResponse, MessageResponse
 from uuid import UUID
 from sqlmodel import select, func, or_, and_, desc
+from fastapi_pagination import Page
+from fastapi_pagination.ext.sqlmodel import apaginate
 
-from ..core.model import Conversation, ConvParticipant, GroupConversation, User, Friend, ConvUnread
+from ..core.model import Conversation, ConvParticipant, GroupConversation, Friend, ConvUnread, Message
 
 
 class ConvServices:
@@ -145,7 +147,7 @@ class ConvServices:
 
                 return conv
 
-    async def get_all_conv(self, current_me: UUID, session: AsyncSession):
+    async def get_all_conv(self, current_me: UUID, session: AsyncSession) -> Page[ConversationResponse]:
         stmt_conv = (
             select(Conversation)
             .join(ConvParticipant)
@@ -205,4 +207,8 @@ class ConvServices:
             )
 
         return responses
+
+    async def get_messages(self, conv_id: UUID, session: AsyncSession) -> Page[MessageResponse]:
+        stmt = select(Message).where(Message.conv_id == conv_id)
+        return await apaginate(session=session, query=stmt)
 

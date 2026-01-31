@@ -7,6 +7,7 @@ from .middleware import register_middleware
 from .auth.routes import auth_router
 from .config import Config
 from .core.logging import setup_logging
+from fastapi_pagination import add_pagination
 
 version_prefix = Config.API_VER
 
@@ -33,6 +34,8 @@ app = FastAPI(
 # Add middleware
 register_middleware(app)
 
+# Add pagination support
+add_pagination(app)
 
 # Health check
 @app.get(f"/{version_prefix}/health", tags=["Health"])
@@ -46,3 +49,6 @@ app.include_router(
 
 app.include_router(friend_router, prefix=f"/{version_prefix}/friends", tags=["Friends"])
 app.include_router(conv_router, prefix=f"/{version_prefix}/conversations", tags=["Conversations"])
+
+# Add pagination support
+add_pagination(app)

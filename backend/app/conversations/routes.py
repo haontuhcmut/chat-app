@@ -7,6 +7,7 @@ from .schema import CreateConvRequest
 from ..core.dependency import SessionDep
 from ..auth.dependency import AccessTokenBearer
 from .services import ConvServices
+from fastapi_pagination import Params
 
 conv_services = ConvServices()
 conv_router = APIRouter()
@@ -16,6 +17,11 @@ async def create_conversation(data: CreateConvRequest, session: SessionDep, acce
     return conv
 
 @conv_router.get("/")
-async def get_conversations(session: SessionDep, access_token: Annotated[dict, Depends(AccessTokenBearer())]):
+async def get_conversations(session: SessionDep, access_token: Annotated[dict, Depends(AccessTokenBearer())], _params: Annotated[Params, Depends()]):
     convs = await conv_services.get_all_conv(UUID(access_token["user_id"]), session)
     return convs
+
+@conv_router.get("/messages")
+async def get_messages(conv_id: UUID, session: SessionDep, _access_token: Annotated[dict, Depends(AccessTokenBearer())], _params: Annotated[Params, Depends()]):
+    messages = await conv_services.get_messages(conv_id, session)
+    return messages
