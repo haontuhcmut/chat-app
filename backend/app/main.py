@@ -34,9 +34,6 @@ app = FastAPI(
 # Add middleware
 register_middleware(app)
 
-# Add pagination support
-add_pagination(app)
-
 # Health check
 @app.get(f"/{version_prefix}/health", tags=["Health"])
 async def health():

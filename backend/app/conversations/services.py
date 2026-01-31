@@ -147,68 +147,64 @@ class ConvServices:
 
                 return conv
 
-    async def get_all_conv(self, current_me: UUID, session: AsyncSession) -> Page[ConversationResponse]:
-        stmt_conv = (
+    async def get_all_conv(
+        self,
+        current_me: UUID,
+        session: AsyncSession,
+    ):
+
+        stmt = (
             select(Conversation)
             .join(ConvParticipant)
             .where(ConvParticipant.user_id == current_me)
             .options(
-                selectinload(Conversation.conv_participants)
-                .selectinload(ConvParticipant.user)
+                selectinload(Conversation.conv_participants).selectinload(
+                    ConvParticipant.user
+                )
             )
             .order_by(Conversation.last_message_at.desc())
         )
 
-        result = await session.exec(stmt_conv)
-        convs = result.unique().all()
+        page = await apaginate(session=session, query=stmt)
 
-        if not convs:
-            return []
+        if not page.items:
+            return page
 
-        conv_ids = [conv.id for conv in convs]
+        conv_ids = [conv.id for conv in page.items]
 
-        unread_stmt = (
-            select(ConvUnread.conv_id, ConvUnread.unread_count)
-            .where(
-                ConvUnread.user_id == current_me,
-                ConvUnread.conv_id.in_(conv_ids)
-            )
+        unread_stmt = select(ConvUnread.conv_id, ConvUnread.unread_count).where(
+            ConvUnread.user_id == current_me,
+            ConvUnread.conv_id.in_(conv_ids),
         )
 
         unread_result = await session.exec(unread_stmt)
         unread_map = {
-            conv_id: unread_count
-            for conv_id, unread_count in unread_result.all()
+            conv_id: unread_count for conv_id, unread_count in unread_result.all()
         }
 
-        responses: list[ConversationResponse] = []
-
-        for conv in convs:
-            participants = [
-                ParticipantResponse(
-                    user_id=p.user.id,
-                    username=p.user.username,
-                    avatar_url=p.user.avatar_url,
-                    joined_at=p.joined_at,
-                )
-                for p in conv.conv_participants
-                if p.user
-            ]
-
-            responses.append(
-                ConversationResponse(
-                    id=conv.id,
-                    type=conv.type,
-                    last_message_content=conv.last_message_content,
-                    last_message_at=conv.last_message_at,
-                    unread_count=unread_map.get(conv.id, 0),
-                    participants=participants,
-                )
+        page.items = [
+            ConversationResponse(
+                id=conv.id,
+                type=conv.type,
+                last_message_content=conv.last_message_content,
+                last_message_at=conv.last_message_at,
+                unread_count=unread_map.get(conv.id, 0),
+                participants=[
+                    ParticipantResponse(
+                        user_id=p.user.id,
+                        username=p.user.username,
+                        avatar_url=p.user.avatar_url,
+                        joined_at=p.joined_at,
+                    )
+                    for p in conv.conv_participants
+                    if p.user
+                ],
             )
+            for conv in page.items
+        ]
 
-        return responses
+        return page
 
-    async def get_messages(self, conv_id: UUID, session: AsyncSession) -> Page[MessageResponse]:
+    async def get_messages(self, conv_id: UUID, session: AsyncSession):
         stmt = select(Message).where(Message.conv_id == conv_id)
-        return await apaginate(session=session, query=stmt)
-
+        return await apaginate(session, stmt)
