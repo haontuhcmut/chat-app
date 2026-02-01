@@ -9,9 +9,11 @@ from ..auth.dependency import AccessTokenBearer
 from .services import ConvServices
 from fastapi_pagination import Params, Page
 
+from ..deps.require_friends import require_friendships
+
 conv_services = ConvServices()
 conv_router = APIRouter()
-@conv_router.post("/")
+@conv_router.post("/", dependencies=[Depends(require_friendships)])
 async def create_conversation(data: CreateConvRequest, session: SessionDep, access_token: Annotated[dict, Depends(AccessTokenBearer())]):
     conv = await  conv_services.create_conv(UUID(access_token["user_id"]), data, session)
     return conv

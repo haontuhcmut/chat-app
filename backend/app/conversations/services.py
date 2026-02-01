@@ -1,13 +1,26 @@
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
-from .schema import CreateConvRequest, ConvType, ConversationResponse, ParticipantResponse, MessageResponse
+from .schema import (
+    CreateConvRequest,
+    ConvType,
+    ConversationResponse,
+    ParticipantResponse,
+    MessageResponse,
+)
 from uuid import UUID
 from sqlmodel import select, func, or_, and_, desc
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlmodel import apaginate
 
-from ..core.model import Conversation, ConvParticipant, GroupConversation, Friend, ConvUnread, Message
+from ..core.model import (
+    Conversation,
+    ConvParticipant,
+    GroupConversation,
+    Friend,
+    ConvUnread,
+    Message,
+)
 
 
 class ConvServices:
@@ -24,39 +37,7 @@ class ConvServices:
             raise HTTPException(status_code=400, detail="Group name is required")
 
         async with session.begin():
-            # validate request fields for the direct type
             if data.type == ConvType.direct:
-                if len(data.member_id) != 1:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Direct conversation must have exactly 1 member",
-                    )
-                if data.member_id[0] == current_me:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="You can't create conversation with yourself",
-                    )
-
-                # Check friends list
-                fr_stmt = select(Friend).where(
-                    or_(
-                        and_(
-                            Friend.user_a == current_me,
-                            Friend.user_b == data.member_id[0],
-                        ),
-                        and_(
-                            Friend.user_b == current_me,
-                            Friend.user_a == data.member_id[0],
-                        ),
-                    )
-                )
-                fr_query = await session.exec(fr_stmt)
-                exist_fr = fr_query.first()
-                if not exist_fr:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="You are not friends with this person yet",
-                    )
 
                 other_user_id = data.member_id[0]
 
@@ -95,33 +76,7 @@ class ConvServices:
 
                 return conv
 
-            # validate request fields for group type
             if data.type == ConvType.group:
-
-                # validate requests fields
-                if len(data.member_id) == 0:
-                    raise HTTPException(status_code=400, detail="Member is required")
-                if data.member_id[0] == current_me:
-                    raise HTTPException(
-                        status_code=400, detail="You can't create group with yourself"
-                    )
-                # Check friends list
-                fr_stmt = select(Friend).where(
-                    or_(Friend.user_a == current_me, Friend.user_b == current_me)
-                )
-                fr_query = await session.exec(fr_stmt)
-                friends = fr_query.all()
-                friend_ids: set[UUID] = set()
-                for f in friends:
-                    if f.user_a == current_me:
-                        friend_ids.add(f.user_b)
-                    else:
-                        friend_ids.add(f.user_a)
-                input_ids = set(data.member_id)
-                if not input_ids.issubset(friend_ids):
-                    raise HTTPException(
-                        status_code=400, detail="Some members are not your friends!"
-                    )
 
                 conv = Conversation(type=ConvType.group)
                 session.add(conv)
@@ -208,5 +163,3 @@ class ConvServices:
     async def get_messages(self, conv_id: UUID, session: AsyncSession):
         stmt = select(Message).where(Message.conv_id == conv_id)
         return await apaginate(session, stmt)
-
-    async def
