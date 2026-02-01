@@ -208,3 +208,5 @@ class ConvServices:
     async def get_messages(self, conv_id: UUID, session: AsyncSession):
         stmt = select(Message).where(Message.conv_id == conv_id)
         return await apaginate(session, stmt)
+
+    async def
