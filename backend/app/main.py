@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 
 from .friends.routes import friend_router
 from .conversations.routes import conv_router
+from .messages.routes import message_router
 from .middleware import register_middleware
 from .auth.routes import auth_router
 from .config import Config
@@ -46,6 +47,8 @@ app.include_router(
 
 app.include_router(friend_router, prefix=f"/{version_prefix}/friends", tags=["Friends"])
 app.include_router(conv_router, prefix=f"/{version_prefix}/conversations", tags=["Conversations"])
+app.include_router(message_router, prefix=f"/{version_prefix}/messages", tags=["Messages"])
+
 
 # Add pagination support
 add_pagination(app)

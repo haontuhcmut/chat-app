@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from pygments.lexers import data
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, or_
+from sqlmodel import select, or_, and_
 from fastapi.responses import JSONResponse
 
 from .schema import (
@@ -16,9 +16,6 @@ from .schema import (
 from ..core.model import User, FriendRequests, Friend
 from ..friends.schema import AddFriendSchema
 import logging
-
-logger = logging.getLogger(__name__)
-
 
 class FriendServices:
     async def add_friend(
@@ -189,3 +186,36 @@ class FriendServices:
             )
 
         return SentReceivedFriendsRequest(sent=sent, received=received)
+
+class FriendshipService:
+    async def assert_direct_friend(self, user_id: UUID, target_id: UUID, session: AsyncSession):
+        if user_id == target_id:
+            raise HTTPException(400, "You can't create conversation with yourself")
+
+        stmt = select(Friend).where(
+            or_(
+                and_(Friend.user_a == user_id, Friend.user_b == target_id),
+                and_(Friend.user_b == user_id, Friend.user_a == target_id),
+            )
+        )
+        result = await session.exec(stmt)
+        if not result.first():
+            raise HTTPException(400, "You are not friends with this person yet")
+
+    async def assert_group_friends(self, user_id: UUID, member_ids: list[UUID], session: AsyncSession):
+        if not member_ids:
+            raise HTTPException(400, "Member is required")
+
+        stmt = select(Friend).where(
+            or_(Friend.user_a == user_id, Friend.user_b == user_id)
+        )
+        result = await session.exec(stmt)
+        friends = result.all()
+
+        friend_ids = {
+            f.user_b if f.user_a == user_id else f.user_a
+            for f in friends
+        }
+
+        if not set(member_ids).issubset(friend_ids):
+            raise HTTPException(400, "Some members are not your friends!")

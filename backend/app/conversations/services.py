@@ -6,21 +6,20 @@ from .schema import (
     ConvType,
     ConversationResponse,
     ParticipantResponse,
-    MessageResponse,
+    UserConvWsResponse,
 )
 from uuid import UUID
-from sqlmodel import select, func, or_, and_, desc
-from fastapi_pagination import Page
+from sqlmodel import select, func
 from fastapi_pagination.ext.sqlmodel import apaginate
 
 from ..core.model import (
     Conversation,
     ConvParticipant,
     GroupConversation,
-    Friend,
     ConvUnread,
     Message,
 )
+from ..friends.services import FriendshipService
 
 
 class ConvServices:
@@ -28,16 +27,21 @@ class ConvServices:
         self,
         current_me: UUID,
         data: CreateConvRequest,
+        friendship: FriendshipService,
         session: AsyncSession,
     ):
-        if not data.member_id:
-            raise HTTPException(status_code=400, detail="Member is required")
-
         if data.type == ConvType.group and not data.name:
             raise HTTPException(status_code=400, detail="Group name is required")
 
         async with session.begin():
             if data.type == ConvType.direct:
+                if len(data.member_id) != 1:
+                    raise HTTPException(400, "Direct conversation must have exactly 1 member")
+                await friendship.assert_direct_friend(
+                    current_me,
+                    data.member_id[0],
+                    session
+                )
 
                 other_user_id = data.member_id[0]
 
@@ -77,6 +81,11 @@ class ConvServices:
                 return conv
 
             if data.type == ConvType.group:
+                await friendship.assert_group_friends(
+                    current_me,
+                    data.member_id,
+                    session
+                )
 
                 conv = Conversation(type=ConvType.group)
                 session.add(conv)
@@ -163,3 +172,17 @@ class ConvServices:
     async def get_messages(self, conv_id: UUID, session: AsyncSession):
         stmt = select(Message).where(Message.conv_id == conv_id)
         return await apaginate(session, stmt)
+
+    async def get_user_conv_ws(
+        self,
+        current_me: UUID,
+        session: AsyncSession,
+    ) -> list[UserConvWsResponse]:
+        stmt = select(ConvParticipant).where(ConvParticipant.user_id == current_me)
+        result = await session.exec(stmt)
+        convs = result.all()
+        if not convs:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        return [UserConvWsResponse(id=conv.id) for conv in convs]
+
+
