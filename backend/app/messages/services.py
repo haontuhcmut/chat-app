@@ -23,7 +23,6 @@ class MessageService:
         await friendship.assert_direct_friend(
             user_id=current_me, target_id=data.recipient_id, session=session
         )
-        #async with session.begin():
         conv = await session.get(Conversation, data.conv_id)
         if not conv:
             # create new direct conversation
@@ -37,9 +36,12 @@ class MessageService:
                     ConvParticipant(conv_id=conv.id, user_id=data.recipient_id),
                 ]
             )
-        message = data.model_dump()
-        message["sender_user_id"] = current_me
-        new_message = Message.model_validate(message)
+        new_message = Message(
+            conv_id=conv.id,
+            sender_user_id=current_me,
+            content=data.content,
+            img_url=data.img_url,
+        )
         session.add(new_message)
         await session.flush()
 
@@ -47,5 +49,6 @@ class MessageService:
         conv.last_message_sender_id = new_message.sender_user_id
         conv.last_message_content = new_message.content
         session.add(conv)
+        await session.commit()
 
         return new_message

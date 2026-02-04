@@ -23,6 +23,6 @@ async def direct_message(
     session: SessionDep,
 ):
     new_message = await message_services.send_direct_message(
-        data, friendship, UUID(access_token.get("user_id")), session
+        data, friendship, UUID(access_token["user_id"]), session
     )
     return new_message

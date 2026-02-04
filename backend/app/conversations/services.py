@@ -1,4 +1,5 @@
 from fastapi.exceptions import HTTPException
+from fastapi_pagination import create_page
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schema import (
@@ -10,7 +11,7 @@ from .schema import (
 )
 from uuid import UUID
 from sqlmodel import select, func
-from fastapi_pagination.ext.sqlmodel import apaginate
+from fastapi_pagination.ext.sqlalchemy import apaginate
 
 from ..core.model import (
     Conversation,
@@ -36,11 +37,11 @@ class ConvServices:
         async with session.begin():
             if data.type == ConvType.direct:
                 if len(data.member_id) != 1:
-                    raise HTTPException(400, "Direct conversation must have exactly 1 member")
+                    raise HTTPException(
+                        400, "Direct conversation must have exactly 1 member"
+                    )
                 await friendship.assert_direct_friend(
-                    current_me,
-                    data.member_id[0],
-                    session
+                    current_me, data.member_id[0], session
                 )
 
                 other_user_id = data.member_id[0]
@@ -82,9 +83,7 @@ class ConvServices:
 
             if data.type == ConvType.group:
                 await friendship.assert_group_friends(
-                    current_me,
-                    data.member_id,
-                    session
+                    current_me, data.member_id, session
                 )
 
                 conv = Conversation(type=ConvType.group)
@@ -129,10 +128,14 @@ class ConvServices:
             .order_by(Conversation.last_message_at.desc())
         )
 
-        page = await apaginate(session=session, query=stmt)
+        page = await apaginate(session, stmt)
 
         if not page.items:
-            return page
+            return create_page(
+                items=[],
+                total=page.total,
+                params=page.params,
+            )
 
         conv_ids = [conv.id for conv in page.items]
 
@@ -146,7 +149,7 @@ class ConvServices:
             conv_id: unread_count for conv_id, unread_count in unread_result.all()
         }
 
-        page.items = [
+        items = [
             ConversationResponse(
                 id=conv.id,
                 type=conv.type,
@@ -166,8 +169,7 @@ class ConvServices:
             )
             for conv in page.items
         ]
-
-        return page
+        return create_page(items=items, total=page.total, params=page.params)
 
     async def get_messages(self, conv_id: UUID, session: AsyncSession):
         stmt = select(Message).where(Message.conv_id == conv_id)
@@ -184,5 +186,3 @@ class ConvServices:
         if not convs:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return [UserConvWsResponse(id=conv.id) for conv in convs]
-
-
