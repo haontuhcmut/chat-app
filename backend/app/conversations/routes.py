@@ -29,13 +29,12 @@ async def create_conversation(
     return conv
 
 
-@conv_router.get("/", response_model=Page[ConversationResponse])
+@conv_router.get("/")
 async def get_conversations(
     session: SessionDep,
     access_token: Annotated[dict, Depends(AccessTokenBearer())],
-    _params: Annotated[Params, Depends()],
 ):
-    convs = await conv_services.get_all_conv(UUID(access_token["user_id"]), session)
+    convs = await conv_services.get_all_convs(UUID(access_token["user_id"]), session)
     return convs
 
 

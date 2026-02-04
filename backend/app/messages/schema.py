@@ -4,7 +4,6 @@ from uuid import UUID
 from pydantic import BaseModel
 
 class CreateMessage(BaseModel):
-    conv_id: UUID | None = None
     content: str
     img_url: str | None = None
     recipient_id: UUID

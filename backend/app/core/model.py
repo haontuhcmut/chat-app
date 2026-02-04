@@ -46,7 +46,6 @@ class User(SQLModel, table=True):
     )
     messages: list["Message"] = Relationship(back_populates="user")
 
-    conversations: list["Conversation"] = Relationship(back_populates="user")
     conv_participants: list["ConvParticipant"] = Relationship(back_populates="user")
 
 
@@ -139,7 +138,6 @@ class Conversation(SQLModel, table=True):
         back_populates="conversation"
     )
 
-    user: User | None = Relationship(back_populates="conversations")
     messages: list[Message] = Relationship(back_populates="conversation")
 
 

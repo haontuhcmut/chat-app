@@ -1,13 +1,10 @@
 from fastapi.exceptions import HTTPException
-from fastapi_pagination import create_page
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schema import (
     CreateConvRequest,
     ConvType,
-    ConversationResponse,
-    ParticipantResponse,
-    UserConvWsResponse,
+    UserConvWsResponse, ConversationResponse, ParticipantResponse,
 )
 from uuid import UUID
 from sqlmodel import select, func
@@ -109,44 +106,39 @@ class ConvServices:
                 )
 
                 return conv
-
-    async def get_all_conv(
-        self,
-        current_me: UUID,
-        session: AsyncSession,
+    async def get_all_convs(
+            self,
+            current_me: UUID,
+            session: AsyncSession,
     ):
-
         stmt = (
             select(Conversation)
             .join(ConvParticipant)
             .where(ConvParticipant.user_id == current_me)
             .options(
-                selectinload(Conversation.conv_participants).selectinload(
-                    ConvParticipant.user
-                )
+                selectinload(Conversation.conv_participants)
+                .selectinload(ConvParticipant.user)
             )
             .order_by(Conversation.last_message_at.desc())
         )
 
-        page = await apaginate(session, stmt)
+        result = await session.exec(stmt)
+        conversations = result.all()
 
-        if not page.items:
-            return create_page(
-                items=[],
-                total=page.total,
-                params=page.params,
+        conv_ids = [conv.id for conv in conversations]
+
+        unread_stmt = (
+            select(ConvUnread.conv_id, ConvUnread.unread_count)
+            .where(
+                ConvUnread.user_id == current_me,
+                ConvUnread.conv_id.in_(conv_ids),
             )
-
-        conv_ids = [conv.id for conv in page.items]
-
-        unread_stmt = select(ConvUnread.conv_id, ConvUnread.unread_count).where(
-            ConvUnread.user_id == current_me,
-            ConvUnread.conv_id.in_(conv_ids),
         )
 
         unread_result = await session.exec(unread_stmt)
         unread_map = {
-            conv_id: unread_count for conv_id, unread_count in unread_result.all()
+            conv_id: unread_count
+            for conv_id, unread_count in unread_result.all()
         }
 
         items = [
@@ -164,25 +156,10 @@ class ConvServices:
                         joined_at=p.joined_at,
                     )
                     for p in conv.conv_participants
-                    if p.user
+                    if p.user and p.user_id != current_me
                 ],
             )
-            for conv in page.items
+            for conv in conversations
         ]
-        return create_page(items=items, total=page.total, params=page.params)
 
-    async def get_messages(self, conv_id: UUID, session: AsyncSession):
-        stmt = select(Message).where(Message.conv_id == conv_id)
-        return await apaginate(session, stmt)
-
-    async def get_user_conv_ws(
-        self,
-        current_me: UUID,
-        session: AsyncSession,
-    ) -> list[UserConvWsResponse]:
-        stmt = select(ConvParticipant).where(ConvParticipant.user_id == current_me)
-        result = await session.exec(stmt)
-        convs = result.all()
-        if not convs:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        return [UserConvWsResponse(id=conv.id) for conv in convs]
+        return items
