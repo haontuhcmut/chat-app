@@ -1,3 +1,4 @@
+import json
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -8,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from .schema import CreateMessage
 from ..conversations.schema import ConvType
 from ..core.model import Conversation, ConvParticipant, Message, ConvUnread
+from ..core.redis import redis_client
 from ..friends.services import FriendshipService
 
 
@@ -92,6 +94,15 @@ class MessageService:
         unread_count.unread_count += 1
         session.add(unread_count)
         await session.commit()
+
+        await redis_client.publish(
+            "broadcast",
+            json.dumps({
+                "key": f"user: {data.recipient_id}",
+                **data.model_dump(mode="json"),
+                }
+            )
+        )
         return message
 
 
