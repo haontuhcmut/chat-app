@@ -17,4 +17,4 @@ async def token_in_jti_blocklist(jti: str) -> bool:
     jti = await token_blocklist.get(name=jti)
     return jti is not None
 
-redis_client = aioredis.from_url(Config.BACKEND_URL)
+redis_client = aioredis.from_url(Config.BACKEND_URL, decode_responses=True)

@@ -19,9 +19,6 @@ async def websocket_handler(ws: WebSocket):
 
     await redis_client.delete(f"ws_session:{sid}")
 
-    if isinstance(user_id, bytes):
-        user_id = user_id.decode()
-
     key = f"user:{user_id}"
     await manager.connect(key, ws)
 

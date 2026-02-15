@@ -90,18 +90,33 @@ class MessageService:
             ConvUnread.conv_id == conv.id, ConvUnread.user_id == data.recipient_id
         )
         result = await session.exec(unread_stmt)
-        unread_count = result.one()
-        unread_count.unread_count += 1
-        session.add(unread_count)
+        unread = result.one_or_none()
+
+        if not unread:
+            unread = ConvUnread(
+                conv_id=conv.id,
+                user_id=data.recipient_id,
+                unread_count=0,
+            )
+
+        unread.unread_count += 1
+        session.add(unread)
         await session.commit()
 
         await redis_client.publish(
             "broadcast",
             json.dumps({
-                "key": f"user: {data.recipient_id}",
-                **data.model_dump(mode="json"),
-                }
-            )
+                "key": f"user:{data.recipient_id}",
+                "data": {
+                    "event": "new_message",
+                    "message_id": str(message.id),
+                    "conv_id": str(conv.id),
+                    "sender_id": str(current_me),
+                    "content": message.content,
+                    "img_url": message.img_url,
+                    "created_at": message.created_at.isoformat(),
+                },
+            }),
         )
         return message
 
