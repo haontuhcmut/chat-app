@@ -1,4 +1,5 @@
 import type { User } from "./user";
+import type { Conversation, Message } from "./chat";
 
 export type authStatus = "idle" | "loading" | "success" | "error";
 
@@ -33,4 +34,22 @@ export interface ThemeState {
   isDark: boolean;
   toggleTheme: () => void;
   setTheme: (dark: boolean) => void;
+}
+
+export interface ChatState {
+  conversations: Conversation[];
+  messages: Record<
+    string,
+    {
+      items: Message[];
+      hasMore: boolean; // infinite-scroll
+      nextCursor?: string | null; // pagination
+    }
+  >;
+  activeConversationId: string | null;
+  loading: boolean;
+  reset: () => void;
+
+  setActiveConversationId: (id: string | null) => void;
+  fetchConversations: () => Promise<void>;
 }

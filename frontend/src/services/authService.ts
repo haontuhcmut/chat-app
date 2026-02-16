@@ -7,12 +7,12 @@ export const authService = {
     email: string,
     first_name: string,
     last_name: string,
-    confirm_password: string
+    confirm_password: string,
   ) => {
     const res = await api.post(
       "auth/signup",
       { username, password, email, first_name, last_name, confirm_password },
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return res.data;
   },
@@ -45,12 +45,12 @@ export const authService = {
   },
 
   fetchMe: async () => {
-    const res = await api.get("auth/me", { withCredentials: true });
+    const res = await api.get("auth/me");
     return res.data;
   },
 
   refresh: async () => {
-    const res = await api.post("/auth/refresh", { withCredentials: true });
+    const res = await api.post("/auth/refresh");
     return res.data.access_token;
   },
 };

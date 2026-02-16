@@ -42,8 +42,8 @@ api.interceptors.response.use(
       originalRequest._retryCount += 1;
 
       try {
-        const res = await api.post("/auth/refresh", { withCredentials: true });
-        const newAccessToken = res.data.accessToken;
+        const res = await api.post("/auth/refresh");
+        const newAccessToken = res.data.access_token;
 
         useAuthStore.getState().setAccessToken(newAccessToken);
 
