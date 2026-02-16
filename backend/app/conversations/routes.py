@@ -47,3 +47,17 @@ async def get_messages(
 ):
     messages = await conv_services.get_messages(conv_id, session)
     return messages
+
+
+@conv_router.patch("/{conv_id}/seen")
+async def mark_seen(
+    conv_id: str,
+    access_token: Annotated[dict, Depends(AccessTokenBearer())],
+    session: SessionDep,
+):
+    seen = await conv_services.mark_as_seen(
+        conv_id=UUID(conv_id),
+        user_id=UUID(access_token.get("user_id")),
+        session=session,
+    )
+    return seen

@@ -41,3 +41,6 @@ class MessageResponse(BaseModel):
 class UserConvWsResponse(BaseModel):
     id: UUID
 
+class UserConvResponse(BaseModel):
+    conv_id: UUID
+
