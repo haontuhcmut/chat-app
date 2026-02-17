@@ -41,9 +41,13 @@ class TokenModel(BaseModel):
 
 class UserModel(BaseModel):
     id: UUID
-    email: str
     username: str
+    email: str
+    display_name: str | None
     avatar_url: str | None
+    bio: str | None
+    phone: str | None
     is_verified: bool
     role: str
     created_at: datetime
+    updated_at: datetime

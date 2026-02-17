@@ -13,7 +13,7 @@ interface ChatCardProps {
   subtitle: React.ReactNode;
 }
 
-const ChatCard = (
+const ChatCard = ({
   convoId,
   name,
   timestamp,
@@ -22,7 +22,7 @@ const ChatCard = (
   unreadCount,
   leftSection,
   subtitle,
-) => {
+}: ChatCardProps) => {
   return (
     <Card
       key={convoId}
