@@ -169,8 +169,8 @@ class GroupConversation(SQLModel, table=True):
     conversation: Conversation = Relationship(back_populates="group_conversation")
 
 
-class ConvSeen(SQLModel, table=True):
-    __tablename__ = "conv_seen"
+class ConvReadState(SQLModel, table=True):
+    __tablename__ = "conv_read_state"
 
     conv_id: UUID = Field(
         default=None, foreign_key="conversation.id", nullable=False, primary_key=True
@@ -178,25 +178,12 @@ class ConvSeen(SQLModel, table=True):
     user_id: UUID = Field(
         default=None, foreign_key="user.id", nullable=False, primary_key=True
     )
-    seen_at: datetime = Field(
+    last_message_id: UUID | None = Field(foreign_key="message.id", nullable=True)
+    last_read_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now())
     )
-
-
-class ConvUnread(SQLModel, table=True):
-    __tablename__ = "conv_unread"
-
-    user_id: UUID = Field(
-        default=None, foreign_key="user.id", nullable=False, primary_key=True
-    )
-    conv_id: UUID = Field(
-        default=None, foreign_key="conversation.id", nullable=False, primary_key=True
-    )
-    unread_count: int | None = Field(default=int(0), nullable=False)
 
 
 Index("idx_conv_last_message_at", Conversation.last_message_at.desc())
 
 Index("idx_conv_participant_user", ConvParticipant.user_id, ConvParticipant.conv_id)
-
-Index("idx_conv_unread_user", ConvUnread.user_id)

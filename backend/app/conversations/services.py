@@ -1,27 +1,22 @@
 import json
-from datetime import datetime
 
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy.dialects.postgresql.dml import insert
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schema import (
     CreateConvRequest,
     ConvType,
-    ConversationResponse,
-    ParticipantResponse,
     UserConvResponse,
 )
 from uuid import UUID
-from sqlmodel import select, func
+from sqlmodel import select, func, desc
 
 from ..core.model import (
     Conversation,
     ConvParticipant,
     GroupConversation,
-    ConvUnread,
-    ConvSeen,
+    Message, ConvReadState,
 )
 from ..core.redis import redis_client
 from ..friends.services import FriendshipService
@@ -78,6 +73,13 @@ class ConvServices:
 
                 session.add_all(
                     [
+                        ConvReadState(conv_id=conv.id, user_id=current_me, last_message_content=None),
+                        ConvReadState(conv_id=conv.id, user_id=other_user_id, last_message_content=None),
+                    ]
+                )
+
+                session.add_all(
+                    [
                         ConvParticipant(conv_id=conv.id, user_id=current_me),
                         ConvParticipant(conv_id=conv.id, user_id=other_user_id),
                     ]
@@ -105,6 +107,11 @@ class ConvServices:
                 participants = set(data.member_id)
                 participants.add(current_me)
 
+                read_states = [
+                    ConvReadState(conv_id=conv.id, user_id=user_id, last_message_content=None) for user_id in participants
+                ]
+                session.add_all(read_states)
+
                 session.add_all(
                     [
                         ConvParticipant(conv_id=conv.id, user_id=uid)
@@ -116,58 +123,21 @@ class ConvServices:
 
     async def get_all_convs(
         self,
-        current_me: UUID,
+        user_id: UUID,
         session: AsyncSession,
     ):
-        stmt = (
+        conv_stmt = (
             select(Conversation)
-            .join(ConvParticipant)
-            .where(ConvParticipant.user_id == current_me)
+            .join(ConvParticipant, ConvParticipant.conv_id == Conversation.id)
+            .where(ConvParticipant.user_id == user_id)
             .options(
-                selectinload(Conversation.conv_participants).selectinload(
-                    ConvParticipant.user
-                )
-            )
-            .order_by(Conversation.last_message_at.desc())
-        )
+                selectinload(Conversation.messages),
+                selectinload(Conversation.conv_participants)
+        ))
 
-        result = await session.exec(stmt)
-        conversations = result.all()
-
-        conv_ids = [conv.id for conv in conversations]
-
-        unread_stmt = select(ConvUnread.conv_id, ConvUnread.unread_count).where(
-            ConvUnread.user_id == current_me,
-            ConvUnread.conv_id.in_(conv_ids),
-        )
-
-        unread_result = await session.exec(unread_stmt)
-        unread_map = {
-            conv_id: unread_count for conv_id, unread_count in unread_result.all()
-        }
-
-        items = [
-            ConversationResponse(
-                id=conv.id,
-                type=conv.type,
-                last_message_content=conv.last_message_content,
-                last_message_at=conv.last_message_at,
-                unread_count=unread_map.get(conv.id, 0),
-                participants=[
-                    ParticipantResponse(
-                        user_id=p.user.id,
-                        username=p.user.username,
-                        avatar_url=p.user.avatar_url,
-                        joined_at=p.joined_at,
-                    )
-                    for p in conv.conv_participants
-                    if p.user and p.user_id != current_me
-                ],
-            )
-            for conv in conversations
-        ]
-
-        return items
+        result = await session.exec(conv_stmt)
+        convs = result.unique().all()
+        return convs
 
     async def get_user_conversations_for_websocket(
         self, user_id: UUID, session: AsyncSession
@@ -179,53 +149,76 @@ class ConvServices:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return [UserConvResponse.model_validate(c) for c in conv]
 
-    async def mark_as_seen(self, conv_id: UUID, user_id: UUID, session: AsyncSession):
+    async def mark_as_seen(
+            self,
+            conv_id: UUID,
+            user_id: UUID,
+            session: AsyncSession
+    ):
+        # validate
         conv = await session.get(Conversation, conv_id)
         if not conv:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        if not conv.last_message_content:
-            raise HTTPException(
-                status_code=404, detail="Could not find message to mark as seen"
+        if not conv.last_message_at:
+            return JSONResponse(
+                status_code=200,
+                content={"message": "No message to mark as read"}
             )
 
-        if conv.last_message_sender_id == user_id:
-            return JSONResponse(status_code=200, content={"message": "Nothing to update"})
+        # getting last message
+        stmt = (
+            select(Message.id)
+            .where(Message.conv_id == conv_id)
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
 
+        result = await session.exec(stmt)
+        latest_message_id = result.first()
 
-        unread = await session.get(ConvUnread, (user_id, conv_id))
-        if unread:
-            unread.unread_count = 0
+        if not latest_message_id:
+            return JSONResponse(
+                status_code=200,
+                content={"message": "No message found"}
+            )
 
-        # Upsert technique replace the get->update->add
-        stmt = insert(ConvSeen).values(
-            conv_id=conv_id,
-            user_id=user_id,
-        ).on_conflict_do_update(
-            index_elements=["conv_id", "user_id"], # detected conflict
-            set_={"seen_at": func.now()}, # update record
+        # Upsert ConvReadState
+        stmt = (
+            insert(ConvReadState)
+            .values(
+                conv_id=conv_id,
+                user_id=user_id,
+                last_message_id=latest_message_id,
+                last_read_at=func.now(),
+            )
+            .on_conflict_do_update(
+                index_elements=["conv_id", "user_id"],
+                set_={
+                    "last_message_id": latest_message_id,
+                    "last_read_at": func.now(),
+                },
+            )
         )
 
         await session.exec(stmt)
         await session.commit()
 
-        seen_conv = await session.get(ConvSeen, (conv_id, user_id))
-
+        # getting participant other
         stmt = (
             select(ConvParticipant.user_id)
             .where(ConvParticipant.conv_id == conv_id)
             .where(ConvParticipant.user_id != user_id)
         )
+
         result = await session.exec(stmt)
         receivers = result.all()
 
         payload = {
             "event": "read-message",
             "conv_id": str(conv_id),
-            "last_message_content": conv.last_message_content,
-            "last_message_at": conv.last_message_at,
+            "last_message_id": str(latest_message_id),
             "seen_by": str(user_id),
-            "seen_at": seen_conv.seen_at,
         }
 
         for uid in receivers:
@@ -242,8 +235,7 @@ class ConvServices:
         return JSONResponse(
             status_code=200,
             content={
-                "message": "Marked as seen",
+                "message": "Marked as read",
                 "seen_by": str(user_id),
-                "my_unread_count": 0,
             },
         )

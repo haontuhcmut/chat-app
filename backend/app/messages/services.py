@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .schema import CreateMessage
 from ..conversations.schema import ConvType
-from ..core.model import Conversation, ConvParticipant, Message, ConvUnread
+from ..core.model import Conversation, ConvParticipant, Message
 from ..core.redis import redis_client
 from ..friends.services import FriendshipService
 
@@ -84,23 +84,6 @@ class MessageService:
         conv.last_message_sender_id = current_me
         conv.last_message_content = message.content if message.content else "[image]"
         session.add(conv)
-
-        # Update unread
-        unread_stmt = select(ConvUnread).where(
-            ConvUnread.conv_id == conv.id, ConvUnread.user_id == data.recipient_id
-        )
-        result = await session.exec(unread_stmt)
-        unread = result.one_or_none()
-
-        if not unread:
-            unread = ConvUnread(
-                conv_id=conv.id,
-                user_id=data.recipient_id,
-                unread_count=0,
-            )
-
-        unread.unread_count += 1
-        session.add(unread)
         await session.commit()
 
         await redis_client.publish(
