@@ -3,6 +3,7 @@ from collections import defaultdict
 
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
+from fastapi_pagination.ext.sqlmodel import apaginate
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -401,3 +402,7 @@ class ConvServices:
                 "seen_by": str(user_id),
             },
         )
+
+    async def get_messages(self, conv_id: UUID, session: AsyncSession):
+        stmt = select(Message).where(Message.conv_id == conv_id)
+        return await apaginate(session, stmt)

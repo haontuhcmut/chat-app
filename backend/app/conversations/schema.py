@@ -22,7 +22,7 @@ class CreateConvRequest(BaseModel):
 
 class MessageResponse(APIModel):
     id: UUID = Field(alias="_id")
-    conversation_id: UUID = Field(alias="conversationId")
+    conv_id: UUID = Field(alias="conversationId")
     sender_user_id: UUID = Field(alias="senderId")
     content: str | None
     img_url: str | None = Field(default=None, alias="imgUrl")
