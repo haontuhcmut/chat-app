@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from .schema import CreateConvRequest, MessageResponse, ConversationResponse
+from .schema import CreateConvRequest, MessageResponse
 from ..core.dependency import SessionDep
 from ..auth.dependency import AccessTokenBearer
 from .services import ConvServices
@@ -34,7 +34,8 @@ async def get_conversations(
     session: SessionDep,
     access_token: Annotated[dict, Depends(AccessTokenBearer())],
 ):
-    convs = await conv_services.get_all_convs(UUID(access_token["user_id"]), session)
+    user_id = UUID(access_token["user_id"])
+    convs = await conv_services.get_all_convs(user_id, session)
     return convs
 
 

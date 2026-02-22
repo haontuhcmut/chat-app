@@ -40,14 +40,17 @@ class TokenModel(BaseModel):
     token_type: str | None = "bearer"
 
 class UserModel(BaseModel):
-    id: UUID
+    id: UUID = Field(alias="_id")
     username: str
     email: str
-    display_name: str | None
-    avatar_url: str | None
+    display_name: str | None = Field(alias="displayName")
+    avatar_url: str | None = Field(alias="avatarUrl")
     bio: str | None
     phone: str | None
-    is_verified: bool
-    role: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(alias="createdAt")
+    updated_at: datetime = Field(alias="updatedAt")
+
+    model_config = {
+        "populate_by_name": True,
+        "from_attributes": True,
+    }

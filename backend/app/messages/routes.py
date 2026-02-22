@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from fastapi.params import Depends
 from typing import Annotated
 
-from .schema import CreateMessage
+from .schema import CreateDirectMessage, CreateGroupMessage
 from ..auth.dependency import AccessTokenBearer
 from ..friends.deps import friendship_service
 from ..friends.services import FriendshipService
@@ -17,12 +17,24 @@ message_services = MessageService()
 
 @message_router.post("/direct")
 async def direct_message(
-    data: CreateMessage,
+    data: CreateDirectMessage,
     access_token: Annotated[dict, Depends(AccessTokenBearer())],
     friendship: Annotated[FriendshipService, Depends(friendship_service)],
     session: SessionDep,
 ):
     new_message = await message_services.send_direct_message(
         data, UUID(access_token["user_id"]), friendship, session
+    )
+    return new_message
+
+
+@message_router.post("/group")
+async def group_message(
+    data: CreateGroupMessage,
+    access_token: Annotated[dict, Depends(AccessTokenBearer())],
+    session: SessionDep,
+):
+    new_message = await message_services.send_group_message(
+        data, UUID(access_token["user_id"]), session
     )
     return new_message

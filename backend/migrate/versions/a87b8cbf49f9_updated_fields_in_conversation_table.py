@@ -1,8 +1,8 @@
-"""deleted user-conv relationship
+"""updated fields in conversation table
 
-Revision ID: ff637af090dc
-Revises: 691ebe3dd3a6
-Create Date: 2026-02-04 12:08:30.656758
+Revision ID: a87b8cbf49f9
+Revises: ea9616401359
+Create Date: 2026-02-21 19:11:36.455072
 
 """
 from typing import Sequence, Union
@@ -13,8 +13,8 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'ff637af090dc'
-down_revision: Union[str, Sequence[str], None] = '691ebe3dd3a6'
+revision: str = 'a87b8cbf49f9'
+down_revision: Union[str, Sequence[str], None] = 'ea9616401359'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,22 +1,32 @@
 import json
+from collections import defaultdict
 
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schema import (
     CreateConvRequest,
     ConvType,
     UserConvResponse,
+    ConversationResponseItem,
+    SeenUserResponse,
+    GroupResponse,
+    ParticipantResponse,
+    ConversationResponse,
+    LastMessageSender,
+    LastMessageResponse,
 )
 from uuid import UUID
-from sqlmodel import select, func, desc
+from sqlmodel import select, func
 
 from ..core.model import (
     Conversation,
     ConvParticipant,
     GroupConversation,
-    Message, ConvReadState,
+    Message,
+    ConvReadState,
 )
 from ..core.redis import redis_client
 from ..friends.services import FriendshipService
@@ -73,8 +83,14 @@ class ConvServices:
 
                 session.add_all(
                     [
-                        ConvReadState(conv_id=conv.id, user_id=current_me, last_message_content=None),
-                        ConvReadState(conv_id=conv.id, user_id=other_user_id, last_message_content=None),
+                        ConvReadState(
+                            conv_id=conv.id,
+                            user_id=current_me,
+                        ),
+                        ConvReadState(
+                            conv_id=conv.id,
+                            user_id=other_user_id,
+                        ),
                     ]
                 )
 
@@ -108,7 +124,8 @@ class ConvServices:
                 participants.add(current_me)
 
                 read_states = [
-                    ConvReadState(conv_id=conv.id, user_id=user_id, last_message_content=None) for user_id in participants
+                    ConvReadState(conv_id=conv.id, user_id=user_id)
+                    for user_id in participants
                 ]
                 session.add_all(read_states)
 
@@ -125,19 +142,171 @@ class ConvServices:
         self,
         user_id: UUID,
         session: AsyncSession,
-    ):
-        conv_stmt = (
+    ) -> ConversationResponse:
+
+        # Load conversations
+        stmt = (
             select(Conversation)
-            .join(ConvParticipant, ConvParticipant.conv_id == Conversation.id)
+            .join(ConvParticipant)
             .where(ConvParticipant.user_id == user_id)
             .options(
-                selectinload(Conversation.messages),
-                selectinload(Conversation.conv_participants)
-        ))
+                selectinload(Conversation.conv_participants).selectinload(
+                    ConvParticipant.user
+                ),
+                selectinload(Conversation.group_conversation),
+            )
+            .order_by(Conversation.last_message_at.desc())
+        )
 
-        result = await session.exec(conv_stmt)
+        result = await session.exec(stmt)
         convs = result.unique().all()
-        return convs
+
+        if not convs:
+            return ConversationResponse(conversations=[])
+
+        conv_ids = [c.id for c in convs]
+
+        # Load read states (1 query)
+
+        read_stmt = select(ConvReadState).where(ConvReadState.conv_id.in_(conv_ids))
+        read_result = await session.exec(read_stmt)
+        read_states = read_result.all()
+
+        read_map: dict[UUID, dict[UUID, UUID | None]] = defaultdict(dict)
+        for r in read_states:
+            read_map[r.conv_id][r.user_id] = r.last_message_id
+
+        # Batch load last messages + sender (1 query)
+
+        last_message_ids = [
+            c.last_message_id for c in convs if c.last_message_id is not None
+        ]
+
+        message_map: dict[UUID, Message] = {}
+
+        if last_message_ids:
+            msg_stmt = (
+                select(Message)
+                .where(Message.id.in_(last_message_ids))
+                .options(selectinload(Message.user))
+            )
+            msg_result = await session.exec(msg_stmt)
+            messages = msg_result.all()
+            message_map = {m.id: m for m in messages}
+
+        # Build response
+        conversation_items: list[ConversationResponseItem] = []
+
+        for conv in convs:
+
+            # ---------- Participants ----------
+            if conv.type == ConvType.direct:
+                filtered_participants = [
+                    p for p in conv.conv_participants if p.user_id != user_id
+                ]
+            else:
+                filtered_participants = conv.conv_participants
+
+            participants = [
+                ParticipantResponse(
+                    _id=p.user.id,
+                    displayName=p.user.display_name,
+                    avatarUrl=p.user.avatar_url,
+                    joinedAt=p.joined_at,
+                )
+                for p in filtered_participants
+            ]
+
+            # ---------- Group ----------
+            group_data = None
+            if conv.type == ConvType.group and conv.group_conversation:
+                group_data = GroupResponse(
+                    name=conv.group_conversation.name,
+                    createdBy=conv.group_conversation.created_by,
+                )
+
+            # ---------- Seen + Unread ----------
+            seen_by: list[SeenUserResponse] = []
+            unread_counts: dict[str, int] = {}
+
+            for p in conv.conv_participants:
+
+                user_last_read_id = read_map.get(conv.id, {}).get(p.user_id)
+
+                if not conv.last_message_id:
+                    unread_counts[str(p.user_id)] = 0
+                    continue
+
+                # Sender always read their own message
+                last_message_obj = message_map.get(conv.last_message_id)
+                if last_message_obj and last_message_obj.sender_user_id == p.user_id:
+                    unread_counts[str(p.user_id)] = 0
+                    continue
+
+                # Get last read time
+                last_read_time = None
+
+                if user_last_read_id:
+                    last_read_msg = message_map.get(user_last_read_id)
+                    if last_read_msg:
+                        last_read_time = last_read_msg.created_at
+
+                stmt = (
+                    select(func.count(Message.id))
+                    .where(Message.conv_id == conv.id)
+                    .where(Message.sender_user_id != p.user_id)
+                )
+
+                if last_read_time:
+                    stmt = stmt.where(Message.created_at > last_read_time)
+
+                result = await session.exec(stmt)
+                count = result.one()
+
+                unread_counts[str(p.user_id)] = count
+
+                if count == 0:
+                    seen_by.append(
+                        SeenUserResponse(
+                            _id=p.user.id,
+                            displayName=p.user.display_name,
+                            avatarUrl=p.user.avatar_url,
+                        )
+                    )
+
+            # ---------- Last Message ----------
+            last_message_response = None
+            last_message_obj = message_map.get(conv.last_message_id)
+
+            if last_message_obj:
+                last_message_response = LastMessageResponse(
+                    _id=last_message_obj.id,
+                    content=last_message_obj.content or "",
+                    createdAt=last_message_obj.created_at,
+                    sender=LastMessageSender(
+                        _id=last_message_obj.user.id,
+                        displayName=last_message_obj.user.display_name,
+                        avatarUrl=last_message_obj.user.avatar_url,
+                    ),
+                )
+
+            # ---------- Build Item ----------
+            item = ConversationResponseItem(
+                _id=conv.id,
+                type=conv.type,
+                group=group_data,
+                participants=participants,
+                lastMessageAt=conv.last_message_at,
+                seenBy=seen_by,
+                lastMessage=last_message_response,
+                unreadCounts=unread_counts,
+                createdAt=conv.created_at,
+                updatedAt=conv.updated_at,
+            )
+
+            conversation_items.append(item)
+
+        return ConversationResponse(conversations=conversation_items)
 
     async def get_user_conversations_for_websocket(
         self, user_id: UUID, session: AsyncSession
@@ -150,53 +319,46 @@ class ConvServices:
         return [UserConvResponse.model_validate(c) for c in conv]
 
     async def mark_as_seen(
-            self,
-            conv_id: UUID,
-            user_id: UUID,
-            session: AsyncSession
+        self,
+        conv_id: UUID,
+        user_id: UUID,
+        session: AsyncSession,
     ):
-        # validate
+        # ---------- Validate conversation ----------
         conv = await session.get(Conversation, conv_id)
         if not conv:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        if not conv.last_message_at:
+        if not conv.last_message_id:
             return JSONResponse(
                 status_code=200,
-                content={"message": "No message to mark as read"}
+                content={"message": "No message to mark as read"},
             )
 
-        # getting last message
-        stmt = (
-            select(Message.id)
-            .where(Message.conv_id == conv_id)
-            .order_by(Message.created_at.desc())
-            .limit(1)
-        )
-
-        result = await session.exec(stmt)
-        latest_message_id = result.first()
-
-        if not latest_message_id:
+        last_message = await session.get(Message, conv.last_message_id)
+        if not last_message:
             return JSONResponse(
                 status_code=200,
-                content={"message": "No message found"}
+                content={"message": "Last message not found"},
             )
 
-        # Upsert ConvReadState
+        if last_message.sender_user_id == user_id:
+            return JSONResponse(
+                status_code=200,
+                content={"message": "Own message - no need to mark as read"},
+            )
+
         stmt = (
             insert(ConvReadState)
             .values(
                 conv_id=conv_id,
                 user_id=user_id,
-                last_message_id=latest_message_id,
-                last_read_at=func.now(),
+                last_message_id=conv.last_message_id,
             )
             .on_conflict_do_update(
                 index_elements=["conv_id", "user_id"],
                 set_={
-                    "last_message_id": latest_message_id,
-                    "last_read_at": func.now(),
+                    "last_message_id": conv.last_message_id,
                 },
             )
         )
@@ -204,7 +366,6 @@ class ConvServices:
         await session.exec(stmt)
         await session.commit()
 
-        # getting participant other
         stmt = (
             select(ConvParticipant.user_id)
             .where(ConvParticipant.conv_id == conv_id)
@@ -217,10 +378,11 @@ class ConvServices:
         payload = {
             "event": "read-message",
             "conv_id": str(conv_id),
-            "last_message_id": str(latest_message_id),
+            "last_message_id": str(conv.last_message_id),
             "seen_by": str(user_id),
         }
 
+        # ---------- Publish Redis ----------
         for uid in receivers:
             await redis_client.publish(
                 "broadcast",

@@ -93,4 +93,4 @@ async def get_current_user(
     user = result.first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserModel(**user.model_dump())
+    return UserModel.model_validate(user).model_dump(by_alias=True)
