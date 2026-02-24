@@ -1,5 +1,6 @@
 import json
 from collections import defaultdict
+from datetime import datetime
 
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
@@ -20,7 +21,7 @@ from .schema import (
     LastMessageResponse,
 )
 from uuid import UUID
-from sqlmodel import select, func
+from sqlmodel import select, func, desc
 
 from ..core.model import (
     Conversation,
@@ -403,6 +404,33 @@ class ConvServices:
             },
         )
 
-    async def get_messages(self, conv_id: UUID, session: AsyncSession):
-        stmt = select(Message).where(Message.conv_id == conv_id)
-        return await apaginate(session, stmt)
+    async def get_messages(
+            self,
+            conv_id: UUID,
+            session: AsyncSession,
+            cursor: datetime | None = None,
+            limit: int = 50,
+    ):
+        stmt = (
+            select(Message)
+            .where(Message.conv_id == conv_id)
+            .order_by(desc(Message.created_at))
+            .limit(limit + 1)
+        )
+
+        if cursor:
+            stmt = stmt.where(Message.created_at < cursor)
+
+        result = await session.exec(stmt)
+        messages = result.all()
+
+        next_cursor = None
+
+        if len(messages) > limit:
+            next_message = messages[-1]
+            next_cursor = next_message.created_at.isoformat()
+            messages.pop()  # bỏ record dư
+
+        messages.reverse()  # old → new
+
+        return messages, next_cursor

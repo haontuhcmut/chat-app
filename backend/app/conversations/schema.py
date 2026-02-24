@@ -29,6 +29,10 @@ class MessageResponse(APIModel):
     updated_at: datetime | None = Field(default=None, alias="updatedAt")
     created_at: datetime = Field(alias="createdAt")
 
+class FetchMessageResponse(BaseModel):
+    messages: list[MessageResponse]
+    nextCursor: str | None = None
+
 class UserConvResponse(BaseModel):
     conv_id: UUID
 

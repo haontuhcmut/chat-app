@@ -1,9 +1,10 @@
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
-from .schema import CreateConvRequest, MessageResponse
+from .schema import CreateConvRequest, MessageResponse, FetchMessageResponse
 from ..core.dependency import SessionDep
 from ..auth.dependency import AccessTokenBearer
 from .services import ConvServices
@@ -39,15 +40,41 @@ async def get_conversations(
     return convs
 
 
-@conv_router.get("/messages", response_model=Page[MessageResponse])
+@conv_router.get(
+    "/{conv_id}/messages",
+    response_model=FetchMessageResponse,
+)
 async def get_messages(
     conv_id: UUID,
     session: SessionDep,
-    _access_token: Annotated[dict, Depends(AccessTokenBearer())],
-    _params: Annotated[Params, Depends()],
+    _: Annotated[dict, Depends(AccessTokenBearer())],
+    cursor: datetime | None = Query(None),
+    limit: int = Query(50),
 ):
-    messages = await conv_services.get_messages(conv_id, session)
-    return messages
+    messages, next_cursor = await conv_services.get_messages(
+        conv_id,
+        session,
+        cursor,
+        limit,
+    )
+
+    response_messages = [
+        MessageResponse(
+            _id=msg.id,
+            conversationId=msg.conv_id,
+            senderId=msg.sender_user_id,
+            content=msg.content,
+            imgUrl=msg.img_url,
+            updatedAt=msg.updated_at,
+            createdAt=msg.created_at,
+        )
+        for msg in messages
+    ]
+
+    return {
+        "messages": response_messages,
+        "nextCursor": next_cursor,
+    }
 
 
 @conv_router.patch("/{conv_id}/seen")
