@@ -14,11 +14,17 @@ export const chatService = {
     return res.data;
   },
 
-  async fetchMessages(id: string, cursor?: string): Promise<FetchMessageProps> {
-    const res = await api.get(
-      `/consersations/${id}/message?limit=${pageLimit}&cursor=${cursor}`,
-    );
+  async fetchMessages(id: string, cursor?: string) {
+    const res = await api.get(`/conversations/${id}/messages`, {
+      params: {
+        limit: pageLimit,
+        ...(cursor ? { cursor } : {}),
+      },
+    });
 
-    return { messages: res.data.message, cursor: res.data.nextCursor };
+    return {
+      messages: res.data.messages,
+      cursor: res.data.nextCursor,
+    };
   },
 };
