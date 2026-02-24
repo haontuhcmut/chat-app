@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field, Column, Relationship
 import enum
 from uuid import UUID, uuid4
 from datetime import datetime
-from sqlalchemy import DateTime, func, Index, Enum
+from sqlalchemy import DateTime, func, Index, Enum, ForeignKey
 
 
 class User(SQLModel, table=True):
@@ -135,7 +135,13 @@ class Conversation(SQLModel, table=True):
 
     type: ConvType = Field(sa_column=Column(Enum(ConvType), nullable=False))
 
-    last_message_id: UUID | None = Field(default=None, foreign_key="message.id")
+    last_message_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            ForeignKey("message.id", use_alter=True, name="fk_conv_last_message"),
+            nullable=True,
+        ),
+    )
 
     last_message_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True)))
 
