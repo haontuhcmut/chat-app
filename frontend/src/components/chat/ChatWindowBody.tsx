@@ -1,6 +1,7 @@
 import { useChatStore } from "@/stores/useChatStore";
 import React from "react";
 import ChatWelcomeScreen from "./ChatWelcomeScreen";
+import MessageItem from "./MessageItem";
 
 const ChatWindowBody = () => {
   const {
@@ -29,8 +30,15 @@ const ChatWindowBody = () => {
   return (
     <div className="p-4 bg-primary-foreground h-full flex flex-col overflow-hidden">
       <div className="flex flex-col overflow-y-auto overflow-x-hidden beautiful-scrollbar">
-        {messages.map((message) => (
-          <>{message.content}</>
+        {messages.map((message, index) => (
+          <MessageItem
+            key={message._id ?? index}
+            message={message}
+            index={index}
+            messages={messages}
+            selectedConvo={selectedConvo}
+            lastMessageStatus="delivered"
+          />
         ))}
       </div>
     </div>
