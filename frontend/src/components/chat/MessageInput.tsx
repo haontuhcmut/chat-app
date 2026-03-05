@@ -5,12 +5,41 @@ import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import EmojiPicker from "./EmojiPicker";
+import { useChatStore } from "@/stores/useChatStore";
+import { toast } from "sonner";
 
 const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const { user } = useAuthStore();
   const [value, setValue] = useState("");
+  const { sendDirectMessage, sendGroupMessage } = useChatStore();
 
   if (!user) return;
+
+  const sendMessage = async () => {
+    if (!value.trim()) return;
+    const currValue = value;
+    setValue("");
+
+    try {
+      if (selectedConvo.type === "direct") {
+        const participants = selectedConvo.participants;
+        const otherUser = participants.filter((p) => p._id !== user._id)[0];
+        await sendDirectMessage(otherUser._id, currValue);
+      } else {
+        await sendGroupMessage(selectedConvo._id, currValue);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to send message. Please try again!");
+    }
+  };
+
+  const handledKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key == "Enter") {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
 
   return (
     <div className="flex items-center gap-2 p-3 min-h-[56px] bg-background">
@@ -23,6 +52,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
       </Button>
       <div className="flex-1 relative">
         <Input
+          onKeyDown={handledKeyPress}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Text message..."
@@ -44,6 +74,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
         </div>
       </div>
       <Button
+        onClick={sendMessage}
         className="bg-gradient-chat hover:shadow-glow transition-smooth hover:scale-105"
         disabled={!value.trim()}
       >

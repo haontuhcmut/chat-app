@@ -7,6 +7,7 @@ class CreateDirectMessage(BaseModel):
     content: str
     img_url: str | None = None
     recipient_id: UUID
+    conv_id: UUID | None = None
 
 class CreateGroupMessage(BaseModel):
     conv_id: UUID

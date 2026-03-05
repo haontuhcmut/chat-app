@@ -14,6 +14,7 @@ from ..friends.services import FriendshipService
 
 
 class MessageService:
+
     async def send_direct_message(
         self,
         data: CreateDirectMessage,
@@ -36,39 +37,70 @@ class MessageService:
             session=session,
         )
 
-        # Find existing direct conversation
-        stmt = (
-            select(Conversation)
-            .join(ConvParticipant)
-            .where(
-                Conversation.type == ConvType.direct,
-                ConvParticipant.user_id.in_([current_me, data.recipient_id]),
-            )
-            .group_by(Conversation.id)
-            .having(func.count(ConvParticipant.user_id) == 2)
-            .limit(1)
-        )
+        conv: Conversation | None = None
 
-        conv = await session.scalar(stmt)
-
-        # Create conversation if not exists
-        if not conv:
-            conv = Conversation(type=ConvType.direct)
-            session.add(conv)
-            await session.flush()
-
-            session.add_all(
-                [
-                    ConvParticipant(conv_id=conv.id, user_id=current_me),
-                    ConvParticipant(conv_id=conv.id, user_id=data.recipient_id),
-                    ConvReadState(conv_id=conv.id, user_id=current_me),
-                    ConvReadState(conv_id=conv.id, user_id=data.recipient_id),
-                ]
+        # ===============================
+        # CASE 1: Có conv_id -> dùng luôn
+        # ===============================
+        conv_id = data.conv_id
+        if conv_id:
+            stmt = (
+                select(Conversation)
+                .join(ConvParticipant)
+                .where(
+                    Conversation.id == conv_id,
+                    Conversation.type == ConvType.direct,
+                    ConvParticipant.user_id.in_([current_me, data.recipient_id]),
+                )
+                .group_by(Conversation.id)
+                .having(func.count(ConvParticipant.user_id) == 2)
             )
 
-            await session.flush()
+            conv = await session.scalar(stmt)
 
-        # Always create message
+            if not conv:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Conversation not found",
+                )
+
+        # =========================================
+        # CASE 2: Không có conv_id -> tìm hoặc tạo
+        # =========================================
+        else:
+            stmt = (
+                select(Conversation)
+                .join(ConvParticipant)
+                .where(
+                    Conversation.type == ConvType.direct,
+                    ConvParticipant.user_id.in_([current_me, data.recipient_id]),
+                )
+                .group_by(Conversation.id)
+                .having(func.count(ConvParticipant.user_id) == 2)
+                .limit(1)
+            )
+
+            conv = await session.scalar(stmt)
+
+            if not conv:
+                conv = Conversation(type=ConvType.direct)
+                session.add(conv)
+                await session.flush()
+
+                session.add_all(
+                    [
+                        ConvParticipant(conv_id=conv.id, user_id=current_me),
+                        ConvParticipant(conv_id=conv.id, user_id=data.recipient_id),
+                        ConvReadState(conv_id=conv.id, user_id=current_me),
+                        ConvReadState(conv_id=conv.id, user_id=data.recipient_id),
+                    ]
+                )
+
+                await session.flush()
+
+        # ===============================
+        # Create message (luôn chạy)
+        # ===============================
         message = Message(
             conv_id=conv.id,
             sender_user_id=current_me,
@@ -83,7 +115,7 @@ class MessageService:
         conv.last_message_at = message.created_at
         conv.last_message_id = message.id
 
-        # Update sender read state (O(1) system)
+        # Update sender read state
         stmt = select(ConvReadState).where(
             ConvReadState.conv_id == conv.id,
             ConvReadState.user_id == current_me,
