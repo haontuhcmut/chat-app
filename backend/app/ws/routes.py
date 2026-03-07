@@ -16,6 +16,6 @@ async def get_session_id(access_token: Annotated[dict, Depends(AccessTokenBearer
     await redis_client.setex(
         name=f"ws_session:{sid}",
         time=300, # 5 mins
-        value=access_token.get("user_id")
+        value=str(access_token.get("user_id"))
     )
     return JSONResponse(status_code=200, content={"sid": sid})
