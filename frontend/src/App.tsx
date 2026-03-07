@@ -7,13 +7,25 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import VerifyAccount from "./components/auth/VerifyAccount";
 import { useThemeStore } from "./stores/useThemeStore";
 import { useEffect } from "react";
+import { useAuthStore } from "./stores/useAuthStore";
+import { useSocketStore } from "./stores/useSocketStore";
 
 function App() {
   const { isDark, setTheme } = useThemeStore();
+  const { accessToken } = useAuthStore();
+  const { connectSocket, disconectSocket } = useSocketStore();
 
   useEffect(() => {
     setTheme(isDark);
   }, [isDark]);
+
+  useEffect(() => {
+    if (accessToken) {
+      connectSocket();
+    }
+
+    return () => disconectSocket();
+  }, [accessToken]);
 
   return (
     <>

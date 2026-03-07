@@ -29,7 +29,7 @@ export const authService = {
     data.append("username", email);
     data.append("password", password);
 
-    const res = await api.post("auth/signin", data, {
+    const res = await api.post("/auth/signin", data, {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -39,18 +39,21 @@ export const authService = {
   },
 
   signOut: async () => {
-    return api.post("auth/signout", null, {
-      withCredentials: true,
-    });
+    return api.post("/auth/signout", null, {});
   },
 
   fetchMe: async () => {
-    const res = await api.get("auth/me");
+    const res = await api.get("/auth/me");
     return res.data;
   },
 
   refresh: async () => {
     const res = await api.post("/auth/refresh");
     return res.data.access_token;
+  },
+
+  wsSession: async () => {
+    const res = await api.get("/auth_ws/");
+    return res.data.sid;
   },
 };

@@ -65,3 +65,9 @@ export interface ChatState {
     imgUrl?: string,
   ) => Promise<void>;
 }
+
+export interface SocketState {
+  socket: WebSocket | null;
+  connectSocket: () => void;
+  disconectSocket: () => void;
+}

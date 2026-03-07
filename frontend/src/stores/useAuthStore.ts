@@ -20,7 +20,7 @@ export const useAuthStore = create<AuthState>()(
       clearState: () => {
         set({ accessToken: null, user: null, loading: false });
         useChatStore.getState().reset();
-        localStorage.clear();
+        localStorage.removeItem("auth-storage");
         sessionStorage.clear();
       },
 
@@ -75,7 +75,6 @@ export const useAuthStore = create<AuthState>()(
           get().clearState();
           set({ loading: true });
 
-          localStorage.clear();
           useChatStore.getState().reset();
 
           const { access_token } = await authService.signIn(email, password);
@@ -96,10 +95,11 @@ export const useAuthStore = create<AuthState>()(
       signOut: async () => {
         try {
           await authService.signOut();
+        } catch (error) {
+          console.error(error);
+        } finally {
           get().clearState();
           toast.success("You've been signed out");
-        } catch (error) {
-          toast.error("An error occurred during sign-out. Please try again.");
         }
       },
 
@@ -131,7 +131,6 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           console.error(error);
-          toast.error("Seesion has expired. Please log in again!");
           get().clearState();
         } finally {
           set({ loading: false });
