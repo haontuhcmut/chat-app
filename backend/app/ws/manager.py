@@ -2,6 +2,8 @@ from fastapi import WebSocket
 from collections import defaultdict
 import logging
 
+from ..core.redis import redis_client
+
 logger = logging.getLogger(__name__)
 
 class ConnectionManager:
@@ -29,7 +31,6 @@ class ConnectionManager:
             f"socket_id={id(ws)} "
             f"users={users} sockets={sockets}"
         )
-
 
     async def send(self, key: str, data: dict):
         for ws in list(self.connections.get(key, [])):

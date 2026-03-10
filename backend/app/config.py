@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     REDIS_URL: str
     BROKER_URL: str
     BACKEND_URL: str
+    MESSAGE_BOKER: str
 
     model_config = SettingsConfigDict(env_file=ENV_PATH, extra="ignore")
 

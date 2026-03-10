@@ -68,6 +68,7 @@ export interface ChatState {
 
 export interface SocketState {
   socket: WebSocket | null;
+  onlineUsers: string[];
   connectSocket: () => void;
   disconectSocket: () => void;
 }

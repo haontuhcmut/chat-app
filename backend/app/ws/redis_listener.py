@@ -3,6 +3,7 @@ import json
 from .manager import ConnectionManager
 from ..core.redis import redis_client
 
+
 async def redis_listener(manager: ConnectionManager):
     pubsub = redis_client.pubsub()
     await pubsub.subscribe("broadcast")
@@ -15,4 +16,8 @@ async def redis_listener(manager: ConnectionManager):
         key = payload["key"]
         data = payload["data"]
 
-        await manager.send(key, data)
+        if key == "*":
+            for k in manager.connections:
+                await manager.send(k, data)
+        else:
+            await manager.send(key, data)
