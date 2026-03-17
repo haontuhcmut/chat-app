@@ -1,42 +1,23 @@
-from fastapi import WebSocket
 from collections import defaultdict
-import logging
 
-from ..core.redis import redis_client
+from starlette.websockets import WebSocket
 
-logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     def __init__(self):
-        self.connections: dict[str, set[WebSocket]] = defaultdict(set)
+        self.active_connections: dict[str, set[WebSocket]] = defaultdict(set)
 
-    async def connect(self, key: str, ws: WebSocket):
-        await ws.accept()
-        self.connections[key].add(ws)
-        users, sockets = self._stats()
-        logging.info(
-            f"[WS CONNECT] user={key} "
-            f"socket_id={id(ws)} "
-            f"from={ws.client.host}:{ws.client.port if ws.client else None} "
-            f"users={users} sockets={sockets}"
-        )
+    async def connect(self, client_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections[client_id].add(websocket)
 
-    async def disconnect(self, key: str, ws: WebSocket):
-        self.connections[key].discard(ws)
-        if not self.connections[key]:
-            del self.connections[key]
-        users, sockets = self._stats()
-        logging.info(
-            f"[WS DISCONNECT] user={key} "
-            f"socket_id={id(ws)} "
-            f"users={users} sockets={sockets}"
-        )
+    async def disconnect(self, client_id: str, websocket: WebSocket):
+        self.active_connections[client_id].discard(websocket)
 
-    async def send(self, key: str, data: dict):
-        for ws in list(self.connections.get(key, [])):
-            await ws.send_json(data)
+        if not self.active_connections[client_id]:
+            del self.active_connections[client_id]
 
-    def _stats(self):
-        total_users = len(self.connections)
-        total_sockets = sum(len(v) for v in self.connections.values())
-        return total_users, total_sockets
+    async def broadcast(self, message: dict):
+        for conns in self.active_connections.values():
+            for ws in conns:
+                await ws.send_json(message)

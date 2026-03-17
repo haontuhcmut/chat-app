@@ -13,7 +13,7 @@ import { useSocketStore } from "./stores/useSocketStore";
 function App() {
   const { isDark, setTheme } = useThemeStore();
   const { accessToken } = useAuthStore();
-  const { connectSocket, disconectSocket } = useSocketStore();
+  const { connectSocket, disconnectSocket } = useSocketStore();
 
   useEffect(() => {
     setTheme(isDark);
@@ -24,7 +24,7 @@ function App() {
       connectSocket();
     }
 
-    return () => disconectSocket();
+    return () => disconnectSocket();
   }, [accessToken]);
 
   return (

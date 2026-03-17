@@ -70,5 +70,5 @@ export interface SocketState {
   socket: WebSocket | null;
   onlineUsers: string[];
   connectSocket: () => void;
-  disconectSocket: () => void;
+  disconnectSocket: () => void;
 }

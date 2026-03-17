@@ -51,9 +51,4 @@ export const authService = {
     const res = await api.post("/auth/refresh");
     return res.data.access_token;
   },
-
-  wsSession: async () => {
-    const res = await api.get("/auth_ws/");
-    return res.data.sid;
-  },
 };
